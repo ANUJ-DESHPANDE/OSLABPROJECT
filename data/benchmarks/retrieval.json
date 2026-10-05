@@ -1,0 +1,14 @@
+[
+  {"query":"What is the aim of creating a child process?","experiment":"FW01","mode":"Learn","relevant_id":"FW01:aim:1"},
+  {"query":"Why does the parent need waitpid to reap a child?","experiment":"FW01","mode":"Learn","relevant_id":"FW01:theory:1"},
+  {"query":"What steps should I follow to fork and wait?","experiment":"FW01","mode":"Procedure","relevant_id":"FW01:procedure:1"},
+  {"query":"Parent prints complete before child finishes; no wait","experiment":"FW01","mode":"Debug","relevant_id":"FW01:troubleshooting:1"},
+  {"query":"What output ordering should fork and wait produce?","experiment":"FW01","mode":"Debug","relevant_id":"FW01:expected_output:1"},
+  {"query":"What does waitpid return in viva?","experiment":"FW01","mode":"Viva","relevant_id":"FW01:viva:1"},
+  {"query":"Does successful exec return to the caller?","experiment":"EX01","mode":"Learn","relevant_id":"EX01:theory:1"},
+  {"query":"How do I call execlp in the child?","experiment":"EX01","mode":"Procedure","relevant_id":"EX01:program:1"},
+  {"query":"Why does code after exec run when executable is wrong?","experiment":"EX01","mode":"Debug","relevant_id":"EX01:troubleshooting:1"},
+  {"query":"Which pipe end should child read, and which ends close?","experiment":"PI01","mode":"Procedure","relevant_id":"PI01:procedure:1"},
+  {"query":"Pipe read hangs forever because write end remains open","experiment":"PI01","mode":"Debug","relevant_id":"PI01:troubleshooting:1"},
+  {"query":"What does read return at pipe EOF?","experiment":"PI01","mode":"Viva","relevant_id":"PI01:viva:1"}
+]
