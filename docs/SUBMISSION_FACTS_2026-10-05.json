@@ -1,0 +1,24 @@
+{
+  "verified_on": "2026-10-05",
+  "source_documents": 3,
+  "instructional_records": 21,
+  "behaviour_cases": 5,
+  "behaviour_case_labels": {"correct": 1, "missing_wait": 2, "wait_in_child": 2},
+  "tests_passed": 8,
+  "retrieval_methods": ["BM25", "LSA dense (TF-IDF plus truncated SVD)", "reciprocal-rank hybrid"],
+  "retrieval_metrics": {
+    "query_count": 12,
+    "bm25": {"recall_at_3": 0.9166666666666666, "mrr_at_10": 0.7013888888888888, "ndcg_at_10": 0.7769554848989805},
+    "dense": {"recall_at_3": 0.8333333333333334, "mrr_at_10": 0.7222222222222222, "ndcg_at_10": 0.7910235724765203},
+    "hybrid": {"recall_at_3": 1.0, "mrr_at_10": 0.8472222222222222, "ndcg_at_10": 0.8859108127976215}
+  },
+  "diagnostic_metrics": {
+    "case_count": 4,
+    "top1_accuracy": 1.0,
+    "top3_accuracy": 1.0,
+    "qualification": "Leave-one-failure-case-out static-feature benchmark with two close variants per failure label; not general diagnostic accuracy."
+  },
+  "runtime_trace_status": "Not collected: five cases are static_only; POSIX C was not compiled or run on this Windows machine.",
+  "implemented_features": ["structured Markdown demo ingestion", "section-aware records and metadata", "deduplication", "BM25 retrieval", "LSA retrieval", "hybrid retrieval", "static fork/wait feature extraction", "controlled failure matching", "structured diagnosis", "local web UI and API", "reproducible evaluation"],
+  "planned_features": ["Dataset Studio", "broader original OS concept library", "deterministic process explorer", "prediction practice", "scheduling simulator", "safe Linux runtime collection and tracing"]
+}
