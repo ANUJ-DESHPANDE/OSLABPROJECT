@@ -1,0 +1,824 @@
+{
+  "schema_version": 1,
+  "dataset_version": "b10d32683ba388e6",
+  "pipeline": [
+    "raw Markdown",
+    "heading detection",
+    "section extraction",
+    "logical records",
+    "metadata and content hash",
+    "deduplication",
+    "BM25/LSA representations"
+  ],
+  "knowledge": {
+    "sources": [
+      {
+        "source": "exec.md",
+        "path": "data/demo/exec.md",
+        "source_sha256": "4ae8df1ae5e6a0a3857de752aca3cf7401f5760e41350113ce85b42faa8b448c",
+        "raw_text": "# Experiment EX01: Program Replacement with exec\n## Aim\nReplace a child process image with another program.\n## Theory\nA successful exec call does not return. The process ID stays the same while its program image changes.\n## Procedure\nCall fork. In the child, call execlp with a valid executable and arguments. Handle the error path only if exec returns. The parent waits.\n## Program\nThe child calls execlp(\"echo\", \"echo\", \"hello\", (char *)NULL); perror follows only on failure.\n## Expected Output\nThe replacement program prints hello. A successful exec does not execute statements following the call.\n## Troubleshooting\nIf code after exec runs, check the executable path and arguments; exec may have failed. Always inspect perror and the return path.\n## Viva\nDoes exec create a new process? What happens to the process ID after exec?\n",
+        "extraction": "UTF-8 Markdown lines; # Experiment and ## section headings",
+        "sections": [
+          {
+            "name": "Aim",
+            "line": 2,
+            "record_ids": [
+              "EX01:aim:1"
+            ]
+          },
+          {
+            "name": "Theory",
+            "line": 4,
+            "record_ids": [
+              "EX01:theory:1"
+            ]
+          },
+          {
+            "name": "Procedure",
+            "line": 6,
+            "record_ids": [
+              "EX01:procedure:1"
+            ]
+          },
+          {
+            "name": "Program",
+            "line": 8,
+            "record_ids": [
+              "EX01:program:1"
+            ]
+          },
+          {
+            "name": "Expected Output",
+            "line": 10,
+            "record_ids": [
+              "EX01:expected_output:1"
+            ]
+          },
+          {
+            "name": "Troubleshooting",
+            "line": 12,
+            "record_ids": [
+              "EX01:troubleshooting:1"
+            ]
+          },
+          {
+            "name": "Viva",
+            "line": 14,
+            "record_ids": [
+              "EX01:viva:1"
+            ]
+          }
+        ],
+        "record_count": 7,
+        "warnings": []
+      },
+      {
+        "source": "fork_wait.md",
+        "path": "data/demo/fork_wait.md",
+        "source_sha256": "90fbbea036a50fc71b6c60e67c312e9b94667fb85103b970425462fdb6f437aa",
+        "raw_text": "# Experiment FW01: Process Creation with fork and wait\n## Aim\nCreate a child process and synchronize the parent with its completion.\n## Theory\nfork creates a child process. The return value is zero in the child and positive in the parent. Process scheduling is nondeterministic. wait or waitpid blocks the parent until a child terminates and reaps it.\n## Procedure\nCall fork, check failure, run child work in the child branch, call waitpid in the parent branch, and print completion after the wait returns.\n## Program\nThe parent branch calls waitpid(child_pid, &status, 0). The child branch exits after its work. Check fork return values and waitpid errors.\n## Expected Output\nChild work finishes before the parent prints its completion message. Exact process IDs and scheduling order of earlier messages may vary.\n## Troubleshooting\nIf the parent prints completion before the child finishes, inspect the parent branch for a missing wait or waitpid call. A wait in the child branch does not synchronize the parent.\n## Viva\nWhy is output order without wait nondeterministic? What does waitpid return? What is a zombie process?\n",
+        "extraction": "UTF-8 Markdown lines; # Experiment and ## section headings",
+        "sections": [
+          {
+            "name": "Aim",
+            "line": 2,
+            "record_ids": [
+              "FW01:aim:1"
+            ]
+          },
+          {
+            "name": "Theory",
+            "line": 4,
+            "record_ids": [
+              "FW01:theory:1"
+            ]
+          },
+          {
+            "name": "Procedure",
+            "line": 6,
+            "record_ids": [
+              "FW01:procedure:1"
+            ]
+          },
+          {
+            "name": "Program",
+            "line": 8,
+            "record_ids": [
+              "FW01:program:1"
+            ]
+          },
+          {
+            "name": "Expected Output",
+            "line": 10,
+            "record_ids": [
+              "FW01:expected_output:1"
+            ]
+          },
+          {
+            "name": "Troubleshooting",
+            "line": 12,
+            "record_ids": [
+              "FW01:troubleshooting:1"
+            ]
+          },
+          {
+            "name": "Viva",
+            "line": 14,
+            "record_ids": [
+              "FW01:viva:1"
+            ]
+          }
+        ],
+        "record_count": 7,
+        "warnings": []
+      },
+      {
+        "source": "pipe.md",
+        "path": "data/demo/pipe.md",
+        "source_sha256": "3b19d2a3304886f0469c9d4357d30c5bb0c80313edead17de951fb15ac6600a3",
+        "raw_text": "# Experiment PI01: Parent-child communication with pipe\n## Aim\nSend a message from parent to child through a pipe.\n## Theory\npipe creates a read end and a write end. Unused ends should be closed in each process. A reader sees EOF only after all write ends close.\n## Procedure\nCreate the pipe before fork. The child closes the write end and reads. The parent closes the read end, writes a message, closes the write end, and waits.\n## Program\nUse pipe(fd), fork(), close(fd[1]) in the child, close(fd[0]) in the parent, read and write the corresponding ends.\n## Expected Output\nThe child receives the bytes written by the parent and exits; the parent reaps the child.\n## Troubleshooting\nIf a read waits forever, verify every process closes its unused write end. If read fails, verify the child uses fd[0].\n## Viva\nWhat does read return at EOF? Why close unused pipe ends?\n",
+        "extraction": "UTF-8 Markdown lines; # Experiment and ## section headings",
+        "sections": [
+          {
+            "name": "Aim",
+            "line": 2,
+            "record_ids": [
+              "PI01:aim:1"
+            ]
+          },
+          {
+            "name": "Theory",
+            "line": 4,
+            "record_ids": [
+              "PI01:theory:1"
+            ]
+          },
+          {
+            "name": "Procedure",
+            "line": 6,
+            "record_ids": [
+              "PI01:procedure:1"
+            ]
+          },
+          {
+            "name": "Program",
+            "line": 8,
+            "record_ids": [
+              "PI01:program:1"
+            ]
+          },
+          {
+            "name": "Expected Output",
+            "line": 10,
+            "record_ids": [
+              "PI01:expected_output:1"
+            ]
+          },
+          {
+            "name": "Troubleshooting",
+            "line": 12,
+            "record_ids": [
+              "PI01:troubleshooting:1"
+            ]
+          },
+          {
+            "name": "Viva",
+            "line": 14,
+            "record_ids": [
+              "PI01:viva:1"
+            ]
+          }
+        ],
+        "record_count": 7,
+        "warnings": []
+      }
+    ],
+    "records": [
+      {
+        "id": "EX01:aim:1",
+        "experiment_id": "EX01",
+        "experiment_name": "Program Replacement with exec",
+        "topic": "Program Replacement with exec",
+        "section_type": "Aim",
+        "source": "exec.md",
+        "page_section": "Aim #1",
+        "language": "en",
+        "content_hash": "616d2839043fa0f2e7b3a976195bff7bfb69e29902f8b790264b3ac0e55df97a",
+        "text": "Replace a child process image with another program."
+      },
+      {
+        "id": "EX01:theory:1",
+        "experiment_id": "EX01",
+        "experiment_name": "Program Replacement with exec",
+        "topic": "Program Replacement with exec",
+        "section_type": "Theory",
+        "source": "exec.md",
+        "page_section": "Theory #1",
+        "language": "en",
+        "content_hash": "781bd4d5a810844b85fe4cfc298fad7f4b00e8e8a47652f380d5e7ba3a112894",
+        "text": "A successful exec call does not return. The process ID stays the same while its program image changes."
+      },
+      {
+        "id": "EX01:procedure:1",
+        "experiment_id": "EX01",
+        "experiment_name": "Program Replacement with exec",
+        "topic": "Program Replacement with exec",
+        "section_type": "Procedure",
+        "source": "exec.md",
+        "page_section": "Procedure #1",
+        "language": "en",
+        "content_hash": "66518a9f0b0e3a39d21fe3c4fcc6e729614a17efd53f018d55f88fa5e87b650a",
+        "text": "Call fork. In the child, call execlp with a valid executable and arguments. Handle the error path only if exec returns. The parent waits."
+      },
+      {
+        "id": "EX01:program:1",
+        "experiment_id": "EX01",
+        "experiment_name": "Program Replacement with exec",
+        "topic": "Program Replacement with exec",
+        "section_type": "Program",
+        "source": "exec.md",
+        "page_section": "Program #1",
+        "language": "C",
+        "content_hash": "694c723a6b85d3bab333d653448816e7654f2512a8fee0815b073a06aec2610b",
+        "text": "The child calls execlp(\"echo\", \"echo\", \"hello\", (char *)NULL); perror follows only on failure."
+      },
+      {
+        "id": "EX01:expected_output:1",
+        "experiment_id": "EX01",
+        "experiment_name": "Program Replacement with exec",
+        "topic": "Program Replacement with exec",
+        "section_type": "Expected Output",
+        "source": "exec.md",
+        "page_section": "Expected Output #1",
+        "language": "en",
+        "content_hash": "5b97ddfa86005c1ecb6671b8e935e218f786bd65e576afebb2c95e7828cfbffd",
+        "text": "The replacement program prints hello. A successful exec does not execute statements following the call."
+      },
+      {
+        "id": "EX01:troubleshooting:1",
+        "experiment_id": "EX01",
+        "experiment_name": "Program Replacement with exec",
+        "topic": "Program Replacement with exec",
+        "section_type": "Troubleshooting",
+        "source": "exec.md",
+        "page_section": "Troubleshooting #1",
+        "language": "en",
+        "content_hash": "84cdd91e8619bf3254d095e02037a3aef826a5e89ad7f2a4cb8bc19c46802fda",
+        "text": "If code after exec runs, check the executable path and arguments; exec may have failed. Always inspect perror and the return path."
+      },
+      {
+        "id": "EX01:viva:1",
+        "experiment_id": "EX01",
+        "experiment_name": "Program Replacement with exec",
+        "topic": "Program Replacement with exec",
+        "section_type": "Viva",
+        "source": "exec.md",
+        "page_section": "Viva #1",
+        "language": "en",
+        "content_hash": "1f2874ad4fe8b01c0554d429676598a7bf45cffed227a31a7a532ad0552b95db",
+        "text": "Does exec create a new process? What happens to the process ID after exec?"
+      },
+      {
+        "id": "FW01:aim:1",
+        "experiment_id": "FW01",
+        "experiment_name": "Process Creation with fork and wait",
+        "topic": "Process Creation with fork and wait",
+        "section_type": "Aim",
+        "source": "fork_wait.md",
+        "page_section": "Aim #1",
+        "language": "en",
+        "content_hash": "725d3c1de278b77899688f78306e1dd613998550e18481f5d868719c53f524f9",
+        "text": "Create a child process and synchronize the parent with its completion."
+      },
+      {
+        "id": "FW01:theory:1",
+        "experiment_id": "FW01",
+        "experiment_name": "Process Creation with fork and wait",
+        "topic": "Process Creation with fork and wait",
+        "section_type": "Theory",
+        "source": "fork_wait.md",
+        "page_section": "Theory #1",
+        "language": "en",
+        "content_hash": "0abed3f524954fed3d8421e2ecbd8951a96b879fac8a6a4cd15e2c4c8b16995f",
+        "text": "fork creates a child process. The return value is zero in the child and positive in the parent. Process scheduling is nondeterministic. wait or waitpid blocks the parent until a child terminates and reaps it."
+      },
+      {
+        "id": "FW01:procedure:1",
+        "experiment_id": "FW01",
+        "experiment_name": "Process Creation with fork and wait",
+        "topic": "Process Creation with fork and wait",
+        "section_type": "Procedure",
+        "source": "fork_wait.md",
+        "page_section": "Procedure #1",
+        "language": "en",
+        "content_hash": "9d281ba4a1c9a0d97fb8c72dfc659b3fbf4db957d3bb07398b589f8b4cde65b0",
+        "text": "Call fork, check failure, run child work in the child branch, call waitpid in the parent branch, and print completion after the wait returns."
+      },
+      {
+        "id": "FW01:program:1",
+        "experiment_id": "FW01",
+        "experiment_name": "Process Creation with fork and wait",
+        "topic": "Process Creation with fork and wait",
+        "section_type": "Program",
+        "source": "fork_wait.md",
+        "page_section": "Program #1",
+        "language": "C",
+        "content_hash": "fba46c8a9990584227912bc07c869ce754d9ea98cd82f45ea7faec28ba75e95e",
+        "text": "The parent branch calls waitpid(child_pid, &status, 0). The child branch exits after its work. Check fork return values and waitpid errors."
+      },
+      {
+        "id": "FW01:expected_output:1",
+        "experiment_id": "FW01",
+        "experiment_name": "Process Creation with fork and wait",
+        "topic": "Process Creation with fork and wait",
+        "section_type": "Expected Output",
+        "source": "fork_wait.md",
+        "page_section": "Expected Output #1",
+        "language": "en",
+        "content_hash": "9a300562c9ec33bd4986e8123a0b1d3d8e1ba2d81f81eaa63af50dd15c18e2e6",
+        "text": "Child work finishes before the parent prints its completion message. Exact process IDs and scheduling order of earlier messages may vary."
+      },
+      {
+        "id": "FW01:troubleshooting:1",
+        "experiment_id": "FW01",
+        "experiment_name": "Process Creation with fork and wait",
+        "topic": "Process Creation with fork and wait",
+        "section_type": "Troubleshooting",
+        "source": "fork_wait.md",
+        "page_section": "Troubleshooting #1",
+        "language": "en",
+        "content_hash": "bf12f78c80f16a7d8616f97938b757be9d4aa110307d0534a0f40cc477c663fa",
+        "text": "If the parent prints completion before the child finishes, inspect the parent branch for a missing wait or waitpid call. A wait in the child branch does not synchronize the parent."
+      },
+      {
+        "id": "FW01:viva:1",
+        "experiment_id": "FW01",
+        "experiment_name": "Process Creation with fork and wait",
+        "topic": "Process Creation with fork and wait",
+        "section_type": "Viva",
+        "source": "fork_wait.md",
+        "page_section": "Viva #1",
+        "language": "en",
+        "content_hash": "314783420ca005e1b1b47345149d929b46ef1b052de7ced691815ebc776ec613",
+        "text": "Why is output order without wait nondeterministic? What does waitpid return? What is a zombie process?"
+      },
+      {
+        "id": "PI01:aim:1",
+        "experiment_id": "PI01",
+        "experiment_name": "Parent-child communication with pipe",
+        "topic": "Parent-child communication with pipe",
+        "section_type": "Aim",
+        "source": "pipe.md",
+        "page_section": "Aim #1",
+        "language": "en",
+        "content_hash": "f40b665c98be57190be91605c1c013cd2258a20d58daddfb70da2ed82611d046",
+        "text": "Send a message from parent to child through a pipe."
+      },
+      {
+        "id": "PI01:theory:1",
+        "experiment_id": "PI01",
+        "experiment_name": "Parent-child communication with pipe",
+        "topic": "Parent-child communication with pipe",
+        "section_type": "Theory",
+        "source": "pipe.md",
+        "page_section": "Theory #1",
+        "language": "en",
+        "content_hash": "05b5e6fa1b8a5753830d3906ccf2a13ddee78edb194bf3207fa96a60698a8f58",
+        "text": "pipe creates a read end and a write end. Unused ends should be closed in each process. A reader sees EOF only after all write ends close."
+      },
+      {
+        "id": "PI01:procedure:1",
+        "experiment_id": "PI01",
+        "experiment_name": "Parent-child communication with pipe",
+        "topic": "Parent-child communication with pipe",
+        "section_type": "Procedure",
+        "source": "pipe.md",
+        "page_section": "Procedure #1",
+        "language": "en",
+        "content_hash": "0ba027e5eab2113e22eef6c38d0e31261551a33851f0437a2a31da5987d5abc6",
+        "text": "Create the pipe before fork. The child closes the write end and reads. The parent closes the read end, writes a message, closes the write end, and waits."
+      },
+      {
+        "id": "PI01:program:1",
+        "experiment_id": "PI01",
+        "experiment_name": "Parent-child communication with pipe",
+        "topic": "Parent-child communication with pipe",
+        "section_type": "Program",
+        "source": "pipe.md",
+        "page_section": "Program #1",
+        "language": "C",
+        "content_hash": "9ba5a81aa7bbe4c975c3760d44b95b1439f80dc0d96db8f9057bf8b2697cc8af",
+        "text": "Use pipe(fd), fork(), close(fd[1]) in the child, close(fd[0]) in the parent, read and write the corresponding ends."
+      },
+      {
+        "id": "PI01:expected_output:1",
+        "experiment_id": "PI01",
+        "experiment_name": "Parent-child communication with pipe",
+        "topic": "Parent-child communication with pipe",
+        "section_type": "Expected Output",
+        "source": "pipe.md",
+        "page_section": "Expected Output #1",
+        "language": "en",
+        "content_hash": "7b12956806fea3c894990cf7d4818fab832d75fdb6359a95f0e403fa3ec17524",
+        "text": "The child receives the bytes written by the parent and exits; the parent reaps the child."
+      },
+      {
+        "id": "PI01:troubleshooting:1",
+        "experiment_id": "PI01",
+        "experiment_name": "Parent-child communication with pipe",
+        "topic": "Parent-child communication with pipe",
+        "section_type": "Troubleshooting",
+        "source": "pipe.md",
+        "page_section": "Troubleshooting #1",
+        "language": "en",
+        "content_hash": "30d8850b7fff306f08952b98089d6c81fef6df078922369359346ef321f5544d",
+        "text": "If a read waits forever, verify every process closes its unused write end. If read fails, verify the child uses fd[0]."
+      },
+      {
+        "id": "PI01:viva:1",
+        "experiment_id": "PI01",
+        "experiment_name": "Parent-child communication with pipe",
+        "topic": "Parent-child communication with pipe",
+        "section_type": "Viva",
+        "source": "pipe.md",
+        "page_section": "Viva #1",
+        "language": "en",
+        "content_hash": "942f44bbada5e86a1371478328b5f333edda1021fd1802833b52988c73f13f98",
+        "text": "What does read return at EOF? Why close unused pipe ends?"
+      }
+    ],
+    "health": {
+      "source_count": 3,
+      "record_count": 21,
+      "section_counts": {
+        "Aim": 3,
+        "Theory": 3,
+        "Procedure": 3,
+        "Program": 3,
+        "Expected Output": 3,
+        "Troubleshooting": 3,
+        "Viva": 3
+      },
+      "missing_metadata_count": 0,
+      "duplicate_count_after_filter": 0,
+      "warnings": []
+    }
+  },
+  "concepts": [
+    {
+      "id": "process",
+      "title": "Processes and state",
+      "area": "Processes",
+      "prerequisites": [],
+      "summary": "A process is a running program with its own execution state. A process can run, be ready to run, or block while waiting for an event.",
+      "claims": [
+        "A process state describes whether it can currently use the CPU.",
+        "Ready does not mean running."
+      ],
+      "misconceptions": [
+        {
+          "id": "ready_means_running",
+          "text": "Every ready process executes at once."
+        }
+      ],
+      "source_records": [
+        "FW01:theory:1"
+      ],
+      "references": [
+        {
+          "title": "OSTEP: Processes",
+          "url": "https://pages.cs.wisc.edu/~remzi/OSTEP/"
+        }
+      ]
+    },
+    {
+      "id": "fork",
+      "title": "Creating a child with fork",
+      "area": "Processes",
+      "prerequisites": [
+        "process"
+      ],
+      "summary": "fork creates a child process. After a successful call, both parent and child continue from the return point, with different return values.",
+      "claims": [
+        "The child receives zero from fork; the parent receives the child PID.",
+        "Creating a child does not determine which process runs next."
+      ],
+      "misconceptions": [
+        {
+          "id": "fork_runs_child_first",
+          "text": "The child always runs before the parent."
+        }
+      ],
+      "source_records": [
+        "FW01:theory:1",
+        "FW01:program:1"
+      ],
+      "references": [
+        {
+          "title": "Linux fork(2)",
+          "url": "https://man7.org/linux/man-pages/man2/fork.2.html"
+        }
+      ]
+    },
+    {
+      "id": "wait",
+      "title": "Waiting for a child",
+      "area": "Processes",
+      "prerequisites": [
+        "fork"
+      ],
+      "summary": "wait or waitpid lets a parent block until a child changes state and then collect its termination status. It orders the parent's post-wait work after that child's exit.",
+      "claims": [
+        "A wait in the parent can prevent its completion message from appearing before the child's exit.",
+        "A wait call in the child does not block the parent."
+      ],
+      "misconceptions": [
+        {
+          "id": "wait_forces_global_order",
+          "text": "wait fixes the order of every print statement in both processes."
+        },
+        {
+          "id": "child_wait_synchronizes_parent",
+          "text": "Calling wait in the child makes the parent wait."
+        }
+      ],
+      "source_records": [
+        "FW01:theory:1",
+        "FW01:troubleshooting:1",
+        "FW01:expected_output:1"
+      ],
+      "references": [
+        {
+          "title": "Linux wait(2)",
+          "url": "https://man7.org/linux/man-pages/man2/wait.2.html"
+        }
+      ]
+    },
+    {
+      "id": "exec",
+      "title": "Replacing a program with exec",
+      "area": "Processes",
+      "prerequisites": [
+        "process"
+      ],
+      "summary": "A successful exec replaces the current process image. It does not create another process, and execution does not continue after the call.",
+      "claims": [
+        "The process ID remains the same across a successful exec.",
+        "Code after exec runs only when exec fails."
+      ],
+      "misconceptions": [
+        {
+          "id": "exec_creates_process",
+          "text": "exec starts a second process."
+        }
+      ],
+      "source_records": [
+        "EX01:theory:1",
+        "EX01:troubleshooting:1"
+      ],
+      "references": [
+        {
+          "title": "Linux exec(3)",
+          "url": "https://man7.org/linux/man-pages/man3/exec.3.html"
+        }
+      ]
+    },
+    {
+      "id": "scheduling",
+      "title": "CPU scheduling",
+      "area": "Scheduling",
+      "prerequisites": [
+        "process"
+      ],
+      "summary": "A scheduler chooses which ready process uses the CPU. Arrival time, burst length, policy and tie-breaking rules affect the timeline and the resulting wait, response and turnaround times.",
+      "claims": [
+        "Turnaround is completion time minus arrival time.",
+        "Response is first CPU start minus arrival time.",
+        "Waiting is turnaround minus CPU burst for a CPU-only workload."
+      ],
+      "misconceptions": [
+        {
+          "id": "response_equals_turnaround",
+          "text": "Response time and turnaround time always mean the same thing."
+        }
+      ],
+      "source_records": [],
+      "references": [
+        {
+          "title": "OSTEP: Scheduling chapters",
+          "url": "https://pages.cs.wisc.edu/~remzi/OSTEP/"
+        }
+      ],
+      "simulator": "schedule"
+    },
+    {
+      "id": "round_robin",
+      "title": "Round Robin",
+      "area": "Scheduling",
+      "prerequisites": [
+        "scheduling"
+      ],
+      "summary": "Round Robin gives a running process at most one quantum before placing it at the back of the ready queue if it still has work. Arrivals and queue order therefore matter.",
+      "claims": [
+        "A process that finishes before its quantum ends does not use the rest of that quantum.",
+        "Changing the quantum can change response and waiting times."
+      ],
+      "misconceptions": [
+        {
+          "id": "round_robin_ignores_arrival",
+          "text": "Every process joins the ready queue at time zero regardless of its arrival."
+        }
+      ],
+      "source_records": [],
+      "references": [
+        {
+          "title": "OSTEP: Scheduling chapters",
+          "url": "https://pages.cs.wisc.edu/~remzi/OSTEP/"
+        }
+      ],
+      "simulator": "schedule"
+    }
+  ],
+  "behaviour": {
+    "cases": [
+      {
+        "id": "baseline",
+        "label": "correct",
+        "baseline": true,
+        "mutation_description": "Reference program: parent waits for child",
+        "source_path": "data/programs/fork_wait/baseline.c",
+        "source_sha256": "8e0fa8e82c278ca87a8bf4e153d9e86da16f1be612924b13b2598f917e9c02c5",
+        "source_code": "#include <stdio.h>\n#include <stdlib.h>\n#include <sys/types.h>\n#include <sys/wait.h>\n#include <unistd.h>\n\nint main(void) {\n    pid_t child = fork();\n    if (child < 0) { perror(\"fork\"); return 1; }\n    if (child == 0) { puts(\"child finished\"); fflush(stdout); _exit(0); }\n    int status;\n    if (waitpid(child, &status, 0) < 0) { perror(\"waitpid\"); return 1; }\n    puts(\"parent complete\");\n    return 0;\n}\n",
+        "source_diff": "",
+        "features": {
+          "fork_present": true,
+          "wait_present": true,
+          "wait_in_child_branch": false,
+          "parent_wait_present": true,
+          "exec_present": false,
+          "pipe_present": false,
+          "close_call_count": 0,
+          "semaphore_present": false
+        },
+        "expected_events": [
+          "PROCESS_CREATE",
+          "PARENT_WAIT",
+          "CHILD_EXIT",
+          "PARENT_RESUME"
+        ],
+        "inferred_from_source": [
+          "fork_present",
+          "wait_present",
+          "parent_wait_present"
+        ],
+        "observed_at_runtime": [],
+        "runtime_status": "not_run_posix_environment_unavailable",
+        "evidence_level": "static_only"
+      },
+      {
+        "id": "missing_wait_a",
+        "label": "missing_wait",
+        "baseline": false,
+        "mutation_description": "Removed waitpid from parent",
+        "source_path": "data/programs/fork_wait/missing_wait_a.c",
+        "source_sha256": "041b4dae1c0b65d4dc0b5fc4c29d2e6fe0490e1626aa6e25fffb825f7fa65cb1",
+        "source_code": "#include <stdio.h>\n#include <sys/types.h>\n#include <unistd.h>\nint main(void) {\n    pid_t child = fork();\n    if (child < 0) { perror(\"fork\"); return 1; }\n    if (child == 0) { sleep(1); puts(\"child finished\"); return 0; }\n    puts(\"parent complete\");\n    return 0;\n}\n",
+        "source_diff": "--- baseline.c\n+++ missing_wait_a.c\n@@ -1,15 +1,10 @@\n #include <stdio.h>\n-#include <stdlib.h>\n #include <sys/types.h>\n-#include <sys/wait.h>\n #include <unistd.h>\n-\n int main(void) {\n     pid_t child = fork();\n     if (child < 0) { perror(\"fork\"); return 1; }\n-    if (child == 0) { puts(\"child finished\"); fflush(stdout); _exit(0); }\n-    int status;\n-    if (waitpid(child, &status, 0) < 0) { perror(\"waitpid\"); return 1; }\n+    if (child == 0) { sleep(1); puts(\"child finished\"); return 0; }\n     puts(\"parent complete\");\n     return 0;\n }",
+        "features": {
+          "fork_present": true,
+          "wait_present": false,
+          "wait_in_child_branch": false,
+          "parent_wait_present": false,
+          "exec_present": false,
+          "pipe_present": false,
+          "close_call_count": 0,
+          "semaphore_present": false
+        },
+        "expected_events": [
+          "PROCESS_CREATE",
+          "PARENT_WAIT",
+          "CHILD_EXIT",
+          "PARENT_RESUME"
+        ],
+        "inferred_from_source": [
+          "fork_present"
+        ],
+        "observed_at_runtime": [],
+        "runtime_status": "not_run_posix_environment_unavailable",
+        "evidence_level": "static_only"
+      },
+      {
+        "id": "missing_wait_b",
+        "label": "missing_wait",
+        "baseline": false,
+        "mutation_description": "Parent returns in switch default without waiting",
+        "source_path": "data/programs/fork_wait/missing_wait_b.c",
+        "source_sha256": "985643c57561a8efd48d7cb42120464010253bb66d3f635f3df349cc00ce7b6e",
+        "source_code": "#include <stdio.h>\n#include <sys/types.h>\n#include <unistd.h>\nint main(void) {\n    pid_t pid = fork();\n    if (pid < 0) { perror(\"fork\"); return 1; }\n    switch (pid) {\n      case 0: sleep(1); puts(\"child finished\"); return 0;\n      default: puts(\"parent complete\"); return 0;\n    }\n}\n",
+        "source_diff": "--- baseline.c\n+++ missing_wait_b.c\n@@ -1,15 +1,11 @@\n #include <stdio.h>\n-#include <stdlib.h>\n #include <sys/types.h>\n-#include <sys/wait.h>\n #include <unistd.h>\n-\n int main(void) {\n-    pid_t child = fork();\n-    if (child < 0) { perror(\"fork\"); return 1; }\n-    if (child == 0) { puts(\"child finished\"); fflush(stdout); _exit(0); }\n-    int status;\n-    if (waitpid(child, &status, 0) < 0) { perror(\"waitpid\"); return 1; }\n-    puts(\"parent complete\");\n-    return 0;\n+    pid_t pid = fork();\n+    if (pid < 0) { perror(\"fork\"); return 1; }\n+    switch (pid) {\n+      case 0: sleep(1); puts(\"child finished\"); return 0;\n+      default: puts(\"parent complete\"); return 0;\n+    }\n }",
+        "features": {
+          "fork_present": true,
+          "wait_present": false,
+          "wait_in_child_branch": false,
+          "parent_wait_present": false,
+          "exec_present": false,
+          "pipe_present": false,
+          "close_call_count": 0,
+          "semaphore_present": false
+        },
+        "expected_events": [
+          "PROCESS_CREATE",
+          "PARENT_WAIT",
+          "CHILD_EXIT",
+          "PARENT_RESUME"
+        ],
+        "inferred_from_source": [
+          "fork_present"
+        ],
+        "observed_at_runtime": [],
+        "runtime_status": "not_run_posix_environment_unavailable",
+        "evidence_level": "static_only"
+      },
+      {
+        "id": "wait_in_child_a",
+        "label": "wait_in_child",
+        "baseline": false,
+        "mutation_description": "Moved wait into child branch",
+        "source_path": "data/programs/fork_wait/wait_in_child_a.c",
+        "source_sha256": "d1d65c9b9f30505bd4e5e0ea362577b167253a0e93aad861e27c5072ec31caed",
+        "source_code": "#include <stdio.h>\n#include <sys/types.h>\n#include <sys/wait.h>\n#include <unistd.h>\nint main(void) {\n    pid_t child = fork();\n    if (child < 0) { perror(\"fork\"); return 1; }\n    if (child == 0) { wait(NULL); puts(\"child finished\"); return 0; }\n    puts(\"parent complete\");\n    return 0;\n}\n",
+        "source_diff": "--- baseline.c\n+++ wait_in_child_a.c\n@@ -1,15 +1,11 @@\n #include <stdio.h>\n-#include <stdlib.h>\n #include <sys/types.h>\n #include <sys/wait.h>\n #include <unistd.h>\n-\n int main(void) {\n     pid_t child = fork();\n     if (child < 0) { perror(\"fork\"); return 1; }\n-    if (child == 0) { puts(\"child finished\"); fflush(stdout); _exit(0); }\n-    int status;\n-    if (waitpid(child, &status, 0) < 0) { perror(\"waitpid\"); return 1; }\n+    if (child == 0) { wait(NULL); puts(\"child finished\"); return 0; }\n     puts(\"parent complete\");\n     return 0;\n }",
+        "features": {
+          "fork_present": true,
+          "wait_present": true,
+          "wait_in_child_branch": true,
+          "parent_wait_present": false,
+          "exec_present": false,
+          "pipe_present": false,
+          "close_call_count": 0,
+          "semaphore_present": false
+        },
+        "expected_events": [
+          "PROCESS_CREATE",
+          "PARENT_WAIT",
+          "CHILD_EXIT",
+          "PARENT_RESUME"
+        ],
+        "inferred_from_source": [
+          "fork_present",
+          "wait_present",
+          "wait_in_child_branch"
+        ],
+        "observed_at_runtime": [],
+        "runtime_status": "not_run_posix_environment_unavailable",
+        "evidence_level": "static_only"
+      },
+      {
+        "id": "wait_in_child_b",
+        "label": "wait_in_child",
+        "baseline": false,
+        "mutation_description": "Moved waitpid into child branch",
+        "source_path": "data/programs/fork_wait/wait_in_child_b.c",
+        "source_sha256": "beeec7f99233665516f39287a5105b448f03c9e8d8d8f0929cbc76f676caf96e",
+        "source_code": "#include <stdio.h>\n#include <sys/types.h>\n#include <sys/wait.h>\n#include <unistd.h>\nint main(void) {\n    pid_t pid = fork();\n    if (pid < 0) { perror(\"fork\"); return 1; }\n    if (pid == 0) { int status; waitpid(-1, &status, 0); puts(\"child finished\"); return 0; }\n    puts(\"parent complete\");\n    return 0;\n}\n",
+        "source_diff": "--- baseline.c\n+++ wait_in_child_b.c\n@@ -1,15 +1,11 @@\n #include <stdio.h>\n-#include <stdlib.h>\n #include <sys/types.h>\n #include <sys/wait.h>\n #include <unistd.h>\n-\n int main(void) {\n-    pid_t child = fork();\n-    if (child < 0) { perror(\"fork\"); return 1; }\n-    if (child == 0) { puts(\"child finished\"); fflush(stdout); _exit(0); }\n-    int status;\n-    if (waitpid(child, &status, 0) < 0) { perror(\"waitpid\"); return 1; }\n+    pid_t pid = fork();\n+    if (pid < 0) { perror(\"fork\"); return 1; }\n+    if (pid == 0) { int status; waitpid(-1, &status, 0); puts(\"child finished\"); return 0; }\n     puts(\"parent complete\");\n     return 0;\n }",
+        "features": {
+          "fork_present": true,
+          "wait_present": true,
+          "wait_in_child_branch": true,
+          "parent_wait_present": false,
+          "exec_present": false,
+          "pipe_present": false,
+          "close_call_count": 0,
+          "semaphore_present": false
+        },
+        "expected_events": [
+          "PROCESS_CREATE",
+          "PARENT_WAIT",
+          "CHILD_EXIT",
+          "PARENT_RESUME"
+        ],
+        "inferred_from_source": [
+          "fork_present",
+          "wait_present",
+          "wait_in_child_branch"
+        ],
+        "observed_at_runtime": [],
+        "runtime_status": "not_run_posix_environment_unavailable",
+        "evidence_level": "static_only"
+      }
+    ],
+    "health": {
+      "case_count": 5,
+      "label_counts": {
+        "correct": 1,
+        "missing_wait": 2,
+        "wait_in_child": 2
+      },
+      "observed_trace_count": 0,
+      "warnings": [
+        "No Linux runtime traces have been collected in this demo snapshot."
+      ]
+    }
+  }
+}

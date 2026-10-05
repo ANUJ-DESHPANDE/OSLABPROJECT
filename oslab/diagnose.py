@@ -1,4 +1,5 @@
 from .behaviour import static_features, match_cases
+from .concepts import concept_for_failure
 
 
 def diagnose(source, output, experiment, retriever, cases, question=""):
@@ -40,5 +41,7 @@ def diagnose(source, output, experiment, retriever, cases, question=""):
             "supporting_signals": signals, "expected_behaviour": ["PROCESS_CREATE", "PARENT_WAIT", "CHILD_EXIT", "PARENT_RESUME"] if experiment == "FW01" else [],
             "observed_behaviour": observed, "matched_failure_cases": matches,
             "retrieved_sources": retrieved, "next_check": next_check,
+            "concept_id": concept_for_failure(label) if experiment == "FW01" else None,
+            "visual_lesson": "/#explore?wait=0" if label == "missing_wait" else "/#explore?wait=1" if experiment == "FW01" else None,
             "features": features, "execution_status": "not_executed_static_analysis_only",
             "explanation": f"{issue}. {next_check} The conclusion is based on source signals and retrieved course material; no runtime trace was captured."}

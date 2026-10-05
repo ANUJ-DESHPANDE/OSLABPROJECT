@@ -1,0 +1,5 @@
+[
+  {"source":"fork_wait.md","experiment_id":"FW01","headings":[["Aim",2],["Theory",4],["Procedure",6],["Program",8],["Expected Output",10],["Troubleshooting",12],["Viva",14]]},
+  {"source":"exec.md","experiment_id":"EX01","headings":[["Aim",2],["Theory",4],["Procedure",6],["Program",8],["Expected Output",10],["Troubleshooting",12],["Viva",14]]},
+  {"source":"pipe.md","experiment_id":"PI01","headings":[["Aim",2],["Theory",4],["Procedure",6],["Program",8],["Expected Output",10],["Troubleshooting",12],["Viva",14]]}
+]

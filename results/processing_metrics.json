@@ -1,0 +1,11 @@
+{
+  "source_count": 3,
+  "labelled_section_count": 21,
+  "section_heading_precision": 1.0,
+  "section_heading_recall": 1.0,
+  "experiment_id_accuracy": 1.0,
+  "metadata_completeness": 1.0,
+  "duplicate_count_after_filter": 0,
+  "unresolved_concept_link_count": 0,
+  "qualification": "Three synthetic Markdown sources with 21 labelled section headings; no PDF or OCR evaluation."
+}

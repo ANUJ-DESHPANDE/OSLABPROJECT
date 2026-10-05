@@ -3,6 +3,29 @@ import math
 from pathlib import Path
 from .behaviour import build_cases, match_cases
 from .knowledge import Retriever, load_demo, save_json
+from .studio import audit_demo
+
+
+def processing_evaluation():
+    labels = json.loads(Path("data/benchmarks/processing.json").read_text(encoding="utf-8"))
+    audit = audit_demo()
+    sources = {item["source"]: item for item in audit["knowledge"]["sources"]}
+    records = audit["knowledge"]["records"]
+    expected = {(item["source"], name, line) for item in labels for name, line in item["headings"]}
+    actual = {(item["source"], section["name"], section["line"])
+              for item in sources.values() for section in item["sections"]}
+    correct = len(expected & actual)
+    experiment_correct = sum(all(record["experiment_id"] == item["experiment_id"]
+                                 for record in records if record["source"] == item["source"]) for item in labels)
+    fields = ("id", "experiment_id", "experiment_name", "topic", "section_type", "source", "page_section", "language", "content_hash", "text")
+    present = sum(bool(record.get(field)) for record in records for field in fields)
+    return {"source_count": len(labels), "labelled_section_count": len(expected),
+            "section_heading_precision": correct / len(actual), "section_heading_recall": correct / len(expected),
+            "experiment_id_accuracy": experiment_correct / len(labels),
+            "metadata_completeness": present / (len(records) * len(fields)),
+            "duplicate_count_after_filter": audit["knowledge"]["health"]["duplicate_count_after_filter"],
+            "unresolved_concept_link_count": len(audit["knowledge"]["health"]["warnings"]),
+            "qualification": "Three synthetic Markdown sources with 21 labelled section headings; no PDF or OCR evaluation."}
 
 
 def retrieval_evaluation():
@@ -40,8 +63,10 @@ def diagnostic_evaluation():
 
 
 def run():
+    processing = processing_evaluation()
     retrieval = retrieval_evaluation()
     diagnostic = diagnostic_evaluation()
+    save_json("results/processing_metrics.json", processing)
     save_json("results/retrieval_metrics.json", retrieval)
     save_json("results/diagnostic_metrics.json", diagnostic)
-    return retrieval, diagnostic
+    return processing, retrieval, diagnostic

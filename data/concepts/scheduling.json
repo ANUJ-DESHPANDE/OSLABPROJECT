@@ -1,0 +1,26 @@
+[
+  {
+    "id": "scheduling",
+    "title": "CPU scheduling",
+    "area": "Scheduling",
+    "prerequisites": ["process"],
+    "summary": "A scheduler chooses which ready process uses the CPU. Arrival time, burst length, policy and tie-breaking rules affect the timeline and the resulting wait, response and turnaround times.",
+    "claims": ["Turnaround is completion time minus arrival time.", "Response is first CPU start minus arrival time.", "Waiting is turnaround minus CPU burst for a CPU-only workload."],
+    "misconceptions": [{"id": "response_equals_turnaround", "text": "Response time and turnaround time always mean the same thing."}],
+    "source_records": [],
+    "references": [{"title": "OSTEP: Scheduling chapters", "url": "https://pages.cs.wisc.edu/~remzi/OSTEP/"}],
+    "simulator": "schedule"
+  },
+  {
+    "id": "round_robin",
+    "title": "Round Robin",
+    "area": "Scheduling",
+    "prerequisites": ["scheduling"],
+    "summary": "Round Robin gives a running process at most one quantum before placing it at the back of the ready queue if it still has work. Arrivals and queue order therefore matter.",
+    "claims": ["A process that finishes before its quantum ends does not use the rest of that quantum.", "Changing the quantum can change response and waiting times."],
+    "misconceptions": [{"id": "round_robin_ignores_arrival", "text": "Every process joins the ready queue at time zero regardless of its arrival."}],
+    "source_records": [],
+    "references": [{"title": "OSTEP: Scheduling chapters", "url": "https://pages.cs.wisc.edu/~remzi/OSTEP/"}],
+    "simulator": "schedule"
+  }
+]

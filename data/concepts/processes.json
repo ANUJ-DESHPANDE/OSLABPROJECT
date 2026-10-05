@@ -1,0 +1,46 @@
+[
+  {
+    "id": "process",
+    "title": "Processes and state",
+    "area": "Processes",
+    "prerequisites": [],
+    "summary": "A process is a running program with its own execution state. A process can run, be ready to run, or block while waiting for an event.",
+    "claims": ["A process state describes whether it can currently use the CPU.", "Ready does not mean running."],
+    "misconceptions": [{"id": "ready_means_running", "text": "Every ready process executes at once."}],
+    "source_records": ["FW01:theory:1"],
+    "references": [{"title": "OSTEP: Processes", "url": "https://pages.cs.wisc.edu/~remzi/OSTEP/"}]
+  },
+  {
+    "id": "fork",
+    "title": "Creating a child with fork",
+    "area": "Processes",
+    "prerequisites": ["process"],
+    "summary": "fork creates a child process. After a successful call, both parent and child continue from the return point, with different return values.",
+    "claims": ["The child receives zero from fork; the parent receives the child PID.", "Creating a child does not determine which process runs next."],
+    "misconceptions": [{"id": "fork_runs_child_first", "text": "The child always runs before the parent."}],
+    "source_records": ["FW01:theory:1", "FW01:program:1"],
+    "references": [{"title": "Linux fork(2)", "url": "https://man7.org/linux/man-pages/man2/fork.2.html"}]
+  },
+  {
+    "id": "wait",
+    "title": "Waiting for a child",
+    "area": "Processes",
+    "prerequisites": ["fork"],
+    "summary": "wait or waitpid lets a parent block until a child changes state and then collect its termination status. It orders the parent's post-wait work after that child's exit.",
+    "claims": ["A wait in the parent can prevent its completion message from appearing before the child's exit.", "A wait call in the child does not block the parent."],
+    "misconceptions": [{"id": "wait_forces_global_order", "text": "wait fixes the order of every print statement in both processes."}, {"id": "child_wait_synchronizes_parent", "text": "Calling wait in the child makes the parent wait."}],
+    "source_records": ["FW01:theory:1", "FW01:troubleshooting:1", "FW01:expected_output:1"],
+    "references": [{"title": "Linux wait(2)", "url": "https://man7.org/linux/man-pages/man2/wait.2.html"}]
+  },
+  {
+    "id": "exec",
+    "title": "Replacing a program with exec",
+    "area": "Processes",
+    "prerequisites": ["process"],
+    "summary": "A successful exec replaces the current process image. It does not create another process, and execution does not continue after the call.",
+    "claims": ["The process ID remains the same across a successful exec.", "Code after exec runs only when exec fails."],
+    "misconceptions": [{"id": "exec_creates_process", "text": "exec starts a second process."}],
+    "source_records": ["EX01:theory:1", "EX01:troubleshooting:1"],
+    "references": [{"title": "Linux exec(3)", "url": "https://man7.org/linux/man-pages/man3/exec.3.html"}]
+  }
+]
