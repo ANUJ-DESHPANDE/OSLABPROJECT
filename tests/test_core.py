@@ -4,7 +4,7 @@ from pathlib import Path
 
 from oslab.behaviour import build_cases, normalize_trace, static_features
 from oslab.diagnose import diagnose
-from oslab.knowledge import Retriever, ingest, load_demo, parse_markdown
+from oslab.knowledge import Retriever, ingest, load_demo, parse_markdown, section_chunks
 
 
 class KnowledgeTests(unittest.TestCase):
@@ -30,6 +30,12 @@ class KnowledgeTests(unittest.TestCase):
             path = Path(directory) / "long.md"
             path.write_text("# Experiment T01: Test\n## Theory\n" + "fork " * 710, encoding="utf-8")
             self.assertEqual(len(parse_markdown(path)), 3)
+
+    def test_fenced_program_preserves_layout(self):
+        content = "First paragraph.\n\n```c\nint main(void) {\n    return 0;\n}\n```\n\nSecond paragraph."
+        chunks = section_chunks(content, max_words=8)
+        self.assertIn("int main(void) {\n    return 0;\n}", "\n".join(chunks))
+        self.assertEqual(len(chunks), 3)
 
     def test_metadata_filter(self):
         for method in ("bm25", "dense", "hybrid"):

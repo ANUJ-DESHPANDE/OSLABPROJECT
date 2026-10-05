@@ -12,7 +12,7 @@ Status after the learning-platform iteration. The [current-status submission rep
 - Deterministic fork/wait Process Explorer with parent-first and child-first schedules, a step timeline, state replay and output comparison.
 - Prediction exercise graded from the same process model.
 - CPU-only FCFS, SJF and Round Robin scheduling with event stepping, ready queue, progressive Gantt timeline and calculated metrics.
-- Local multi-view UI, JSON endpoints, 20 passing Python tests and browser smoke checks.
+- Local multi-view UI, JSON endpoints, 21 passing Python tests and browser smoke checks.
 
 ## Experimental or limited
 

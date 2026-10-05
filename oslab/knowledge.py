@@ -17,6 +17,36 @@ def tokens(text):
     return TOKEN.findall(text.lower())
 
 
+def section_chunks(body, max_words=350):
+    """Keep paragraph and fenced-code blocks intact where possible."""
+    blocks, block, fenced = [], [], False
+    for line in body.splitlines():
+        if not line.strip() and not fenced:
+            if block:
+                blocks.append("\n".join(block))
+                block = []
+            continue
+        block.append(line)
+        if line.lstrip().startswith("```"):
+            fenced = not fenced
+    if block:
+        blocks.append("\n".join(block))
+    chunks, current = [], []
+    for block in blocks:
+        count = len(block.split())
+        if current and sum(len(item.split()) for item in current) + count > max_words:
+            chunks.append("\n\n".join(current))
+            current = []
+        if count > max_words and not block.lstrip().startswith("```"):
+            words = block.split()
+            chunks.extend(" ".join(words[i:i + max_words]) for i in range(0, len(words), max_words))
+        else:
+            current.append(block)
+    if current:
+        chunks.append("\n\n".join(current))
+    return chunks
+
+
 def parse_markdown(path):
     """Retain experiment headings and logical sections; split only oversized sections."""
     source = Path(path)
@@ -27,8 +57,7 @@ def parse_markdown(path):
         body = "\n".join(lines).strip()
         if not section or not body:
             return
-        words = body.split()
-        chunks = [" ".join(words[i:i + 350]) for i in range(0, len(words), 350)]
+        chunks = section_chunks(body)
         for part, chunk in enumerate(chunks, 1):
             digest = hashlib.sha256(chunk.encode()).hexdigest()
             records.append({"id": f"{experiment_id}:{section.lower().replace(' ', '_')}:{part}",

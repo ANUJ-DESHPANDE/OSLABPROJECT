@@ -14,7 +14,7 @@ UTF-8 Markdown → experiment heading → named section heading → section text
 → duplicate filter → 21 JSON records → BM25 / LSA representations
 ```
 
-`oslab/knowledge.py` recognizes `# Experiment ID: Name` and known `##` section names. Record fields are `id`, `experiment_id`, `experiment_name`, `topic`, `section_type`, `source`, `page_section`, `language`, `content_hash`, and `text`. Duplicate filtering keys on experiment ID, section type and hash. Markdown extraction is currently strict: unknown section names fail rather than silently becoming arbitrary text. It does not process PDF, OCR or arbitrary lecture notes.
+`oslab/knowledge.py` recognizes `# Experiment ID: Name` and known `##` section names. It retains paragraph breaks and fenced code blocks where possible; an oversized plain-text block is split into 350-word pieces. Record fields are `id`, `experiment_id`, `experiment_name`, `topic`, `section_type`, `source`, `page_section`, `language`, `content_hash`, and `text`. Duplicate filtering keys on experiment ID, section type and hash. Markdown extraction is currently strict: unknown section names fail rather than silently becoming arbitrary text. It does not process PDF, OCR or arbitrary lecture notes.
 
 `results/demo_knowledge.json` is a tracked public snapshot. `data/processed/knowledge.json` is the ignored local working copy. `results/dataset_audit.json` adds source SHA-256 values, raw source text, detected section line numbers, record links, health counts and warnings. Its dataset fingerprint changes when a public source, C case or concept record changes; it is reproducible from the checked-in inputs.
 
