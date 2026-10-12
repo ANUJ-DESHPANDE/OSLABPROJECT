@@ -29,7 +29,7 @@
 <body>
   <section class="page">
     <h1>OS Lab Companion</h1>
-    <p class="meta">Operating Systems Lab project report · 12 October 2026</p>
+    <p class="meta">Operating Systems Lab project report · 12 October 2026<br>Anuj Deshpande · Registration No.: 24BCE0794</p>
     <p>We built a local study tool around the material supplied for our Operating Systems course. It searches the notes, shows the file and page or slide behind each result, and can ask a local language model to explain the retrieved text. It also reviews selected C lab-code patterns without running student code and has a separate CPU scheduling simulator.</p>
 
     <h2>1. Dataset</h2>
@@ -77,12 +77,10 @@
 
   <section class="page">
     <h2>5. What went wrong</h2>
-    <p>We began with a fork/wait lab example and kept building around it. By the time we tried to explain the project to someone else, the interface made that one example look like the main subject. That was our scope mistake. We moved the detailed process model behind relevant questions and made course-wide search the first screen.</p>
-    <p>We also assumed a ZIP of course material meant all of it was searchable. It was not. Nineteen entries were older presentation files or images that our extractor could not read as text. We now show the skipped entries and reasons instead of silently dropping them. We have not converted those files or added OCR, so some course topics may still be missing from retrieval.</p>
-    <p>The local model needed more checking than we expected. The first smaller model reversed which process read and wrote a pipe. The 4B model gave a better explanation but, in one test, said the parent closed a descriptor when the pasted code had no <code>close()</code> call. We tried a stricter prompt and source-linked JSON output; that reduced some errors but did not make this code path reliable. We stopped using free-form model text for the pipe EOF-loop pattern and built a source-line walkthrough instead. Other code suggestions remain hypotheses. A citation number checks where the model pointed; it does not prove its reasoning is right.</p>
-    <p>A different question showed a retrieval failure. We asked for a comparison of FCFS, SSTF, SCAN and C-SCAN disk scheduling. The top results included lock notes and a slide that merely named disk scheduling. The model initially supplied the algorithm details anyway. After adding a coverage check, the app withholds a generated comparison and shows the nearest passages. The limitation remains: ranking has not been tested against labelled questions from the actual course archive.</p>
-    <p>Our first evaluation numbers looked stronger than the project really was. Hybrid retrieval reached 1.000 Recall@3, but only on 12 synthetic questions; the 4/4 diagnosis result came from closely related fork/wait variants. We now label those scores as controlled regression checks. We cannot call them the accuracy of the course assistant. We also have no measured student learning outcome or runtime trace for the pasted-code reviewer.</p>
-    <p>Finally, local model setup took more effort than planned. The Ollama installer attempt did not complete on this laptop, so we used a verified GGUF file with a local llama.cpp runtime. The model now runs, but this installation work delayed the more important task of building a proper relevance test set.</p>
+    <p>When we first tried the app with a pasted C program, search found a useful note about pipes. That felt like progress, but it still left the student asking the main question: why does my program hang? The note explained the idea in general; it could not connect it to the loop and missing <code>close()</code> call in that program. This pushed us to add a local explanation model and a walkthrough tied to the code.</p>
+    <p>The model made the answer easier to read, but it created a new problem. In one test, it confidently said the parent had closed a pipe end, although there was no <code>close()</code> in the pasted code. We had to check its explanation against the actual lines and write a line-by-line walkthrough for that case. A clear explanation can still be wrong.</p>
+    <p>We also thought that importing the course ZIP meant we could search the whole syllabus. Some files were older presentations or images that our importer could not read. A search result could look relevant while only mentioning a topic in passing. We now show skipped files and avoid giving a confident answer when the material does not support one.</p>
+    <p>Our early test scores looked reassuring, but they came from a small set of questions we wrote ourselves. They show that the demo cases work; they do not show how well the tool answers questions across the professor's course material. We should have tested real course questions against those files sooner.</p>
     <div class="page-mark">OS Lab Companion · Project report · 4 of 5</div>
   </section>
 
