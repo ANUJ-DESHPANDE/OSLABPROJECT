@@ -4,7 +4,13 @@
 
 The current public knowledge inputs are three original Markdown lab documents: `fork_wait.md`, `exec.md`, and `pipe.md`. Each has one experiment and seven logical sections. The behaviour inputs are five reviewed C files in `data/programs/fork_wait/`: one reference representation and two variants of each of two failure labels. The original concept library has six records across processes and scheduling. These counts describe a small demo corpus, not university textbook coverage.
 
-Private university documents belong only in gitignored `data/private/` or `data/university/`. The build reads `data/demo/*.md` only. Linked references are not downloaded or copied into the repository.
+Private university documents belong only in gitignored `data/private/` or `data/university/`. The public demo build reads `data/demo/*.md`; the separate `import-course` command reads the private archive into a local course index. The web search combines that index with the 21 clearly labeled original project lab notes. Linked external references are not copied into the repository.
+
+## Private course pipeline
+
+The current local `OS.zip` yielded **33 extractable documents and 553 search passages** (16 PPTX, 15 PDF, 2 DOCX); 21 archive entries were skipped. `oslab/course.py` checks archive paths and sizes, rejects duplicate file hashes, extracts PDF pages and PPTX slides, normalizes text, splits long sections, and records the source name and page/slide. The resulting `data/private/processed/course_index.json` is local and gitignored. Scanned pages, images, and legacy `.ppt`/`.doc` are not searchable here.
+
+Search ranks each passage with BM25 and LSA (TF-IDF bigrams reduced with truncated SVD), then combines ranks by reciprocal-rank fusion. LSA is a statistical dense representation, not a neural embedding. The private archive does not yet have independently labeled retrieval relevance scores. Public benchmark numbers elsewhere in this repository refer only to the small synthetic Markdown corpus.
 
 ## Knowledge pipeline
 

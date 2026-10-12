@@ -1,6 +1,6 @@
 const $ = id => document.getElementById(id);
 const escapeHTML = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
-const state = {concepts:[], records:[], studio:null, metrics:null, scenario:null, step:0, concept:'process', studioTab:'knowledge', studioSource:0, studioCase:0, scheduleResult:null, scheduleStep:0};
+const state = {concepts:[], records:[], studio:null, metrics:null, courseStatus:null, scenario:null, step:0, concept:'process', studioTab:'knowledge', studioSource:0, studioCase:0, scheduleResult:null, scheduleStep:0};
 
 async function json(url, options) {
   const response = await fetch(url, options);
@@ -10,17 +10,85 @@ async function json(url, options) {
 }
 
 function navigate(page) {
-  const valid = ['home','learn','explore','schedule','practice','debug','studio'];
-  if (!valid.includes(page)) page = 'home';
+  const valid = ['course','learn','explore','schedule','practice','debug','studio'];
+  if (!valid.includes(page)) page = 'course';
   document.querySelectorAll('.page').forEach(item => item.classList.toggle('active', item.id === `page-${page}`));
   document.querySelectorAll('.nav-item').forEach(item => item.classList.toggle('active', item.dataset.page === page));
-  $('breadcrumb').textContent = `${page.toUpperCase()} / ${page === 'home' ? 'START HERE' : page === 'explore' ? 'FORK & WAIT' : 'OSLAB COPILOT'}`;
+  $('breadcrumb').textContent = {course:'ASK OS', debug:'REVIEW LAB CODE', schedule:'SCHEDULING LAB', studio:'DATA PROCESSING', explore:'PROCESS MODEL'}[page] || page.toUpperCase();
   if (location.hash !== `#${page}` && !location.hash.startsWith(`#${page}?`)) history.replaceState(null,'',`#${page}`);
   if (page === 'explore' && state.scenario) renderScenario();
   if (page === 'practice') renderPractice();
   if (page === 'studio' && state.studio) renderStudio();
   if (page === 'schedule' && state.scheduleResult) renderSchedule();
   window.scrollTo(0,0);
+}
+
+async function loadCourseStatus() {
+  try {
+    state.courseStatus = await json('/api/course/status');
+    const status = state.courseStatus;
+    $('course-status').textContent = status.ready
+      ? `${status.documents} course files · ${status.passages} course passages + ${status.supplemental_passages} project lab notes · stored locally`
+      : 'No local course index found. Import your course ZIP to enable cited search.';
+    $('course-pipeline').innerHTML = status.ready
+      ? `<h2>Private course data</h2><div class="course-pipeline-steps"><span>ZIP</span><span>Extract by page/slide</span><span>Clean and chunk</span><span>Keep source metadata</span><span>BM25 + LSA ranking</span><span>Local explanation</span></div><p><b>${status.documents} of ${status.documents + status.skipped}</b> archive files became <b>${status.passages}</b> passages. The search also includes <b>${status.supplemental_passages}</b> clearly labeled original project lab notes. Formats: ${escapeHTML(Object.entries(status.formats).map(([name,count]) => `${name.toUpperCase()} ${count}`).join(', '))}.</p><p><b>Skipped:</b> ${escapeHTML(Object.entries(status.skip_reasons).map(([reason,count]) => `${count} ${reason}`).join('; '))}.</p><details class="course-inventory"><summary>Inspect imported files and their fingerprints</summary><div class="inventory-scroll"><table class="metric-table"><thead><tr><th>Source file</th><th>Format</th><th>Passages</th><th>SHA-256</th></tr></thead><tbody>${status.source_inventory.map(item => `<tr><td>${escapeHTML(item.source)}</td><td>${escapeHTML(item.format.toUpperCase())}</td><td>${item.chunks}</td><td><code title="${escapeHTML(item.sha256)}">${escapeHTML(item.sha256.slice(0,12))}…</code></td></tr>`).join('')}</tbody></table></div></details><details class="course-inventory"><summary>Inspect skipped archive entries</summary><div class="inventory-scroll"><table class="metric-table"><thead><tr><th>Archive entry</th><th>Reason</th></tr></thead><tbody>${status.skipped_entries.map(item => `<tr><td>${escapeHTML(item.source)}</td><td>${escapeHTML(item.reason)}</td></tr>`).join('')}</tbody></table></div></details>`
+      : '<h2>Private course data</h2><p>Import a course ZIP locally to enable the course index.</p>';
+  } catch (error) { $('course-status').textContent = `Could not read local course index: ${error.message}`; }
+}
+
+async function loadModelStatus() {
+  try {
+    const status = await json('/api/model/status');
+    $('model-status').textContent = status.ready
+      ? `Local explanation model ready: ${status.label}`
+      : `Local explanation model unavailable (${status.label}). Search passages still work.`;
+    $('model-status').classList.toggle('unavailable', !status.ready);
+  } catch (error) { $('model-status').textContent = `Could not check local model: ${error.message}`; }
+}
+
+function renderSourceList(items, heading='Course sources') {
+  if (!items?.length) return '<p>No matching course passages were found.</p>';
+  return `<h2>${escapeHTML(heading)}</h2>` + items.map((item,index) => {
+    const preview = item.text.replace(/\s+/g,' ').slice(0,110);
+    return `<details class="course-result" ${index === 0 ? 'open' : ''}><summary><span class="course-result-meta">[${index+1}] ${escapeHTML(item.group)} · ${escapeHTML(item.location)}</span><strong>${escapeHTML(item.title)}</strong><small>${escapeHTML(item.source)}</small><span class="course-preview">${escapeHTML(preview)}${item.text.length > 110 ? '…' : ''}</span></summary><p>${escapeHTML(item.text)}</p></details>`;
+  }).join('');
+}
+
+function renderVisual(container, visual, sources, code='') {
+  if (!visual?.steps?.length) { container.innerHTML = ''; return; }
+  let active = 0;
+  function paint() {
+    const current = visual.steps[active];
+    const source = sources[current.source_id - 1];
+    const codeLine = current.code_line && code ? code.split(/\r?\n/)[current.code_line - 1] : '';
+    container.innerHTML = `<section class="visual-stepper"><div class="eyebrow">QUESTION-SPECIFIC VISUAL EXPLANATION</div><h2>${escapeHTML(visual.title || 'Step through the idea')}</h2><div class="visual-track">${visual.steps.map((step,index) => `<button class="visual-node ${index === active ? 'active' : ''}" data-visual-step="${index}"><b>${index+1}</b><span>${escapeHTML(step.label)}</span></button>`).join('')}</div><div class="visual-detail"><strong>${escapeHTML(current.label)}</strong><p>${escapeHTML(current.detail)}</p>${codeLine ? `<div class="visual-code"><small>YOUR CODE · LINE ${current.code_line}</small><code>${escapeHTML(codeLine)}</code></div>` : ''}<small>Based on source [${current.source_id}]: ${escapeHTML(source?.title || 'course note')} · ${escapeHTML(source?.location || '')}</small></div><div class="visual-actions"><button class="secondary small" data-visual-back ${active === 0 ? 'disabled' : ''}>← Back</button><button class="primary small" data-visual-next ${active === visual.steps.length-1 ? 'disabled' : ''}>Next step →</button></div><p class="caption">This sequence explains the retrieved material. It is not a trace of your code or a kernel run.</p></section>`;
+    container.querySelectorAll('[data-visual-step]').forEach(button => button.onclick = () => { active = Number(button.dataset.visualStep); paint(); });
+    container.querySelector('[data-visual-back]').onclick = () => { active--; paint(); };
+    container.querySelector('[data-visual-next]').onclick = () => { active++; paint(); };
+  }
+  paint();
+}
+
+async function searchCourse() {
+  const question = $('course-question').value.trim();
+  if (!question) { $('course-question').focus(); return; }
+  $('course-answer').innerHTML = '<div class="answer-panel"><p>Finding passages and asking the local model to explain them…</p></div>';
+  $('course-visual').innerHTML = '';
+  $('course-context').innerHTML = '';
+  $('course-results').innerHTML = '';
+  try {
+    const data = await json('/api/course/ask', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({question, method:$('course-method').value})});
+    if (!data.ready) { $('course-answer').innerHTML = '<p class="warning">Import a course ZIP first.</p>'; return; }
+    if (data.explanation) {
+      $('course-answer').innerHTML = `<section class="answer-panel"><div class="eyebrow">EXPLANATION FROM LOCAL MODEL</div><p>${escapeHTML(data.explanation.answer)}</p>${!data.explanation.has_valid_citation ? '<div class="warning">The model did not cite a source in its answer. Verify against the passages below.</div>' : ''}<small>${escapeHTML(data.explanation.model)} · source numbers refer to the passages below</small></section>`;
+    } else {
+      $('course-answer').innerHTML = `<div class="model-notice">${escapeHTML(data.model_error || 'No source-grounded explanation available.')} The matching passages are below.</div>`;
+    }
+    renderVisual($('course-visual'), data.visual, data.matches);
+    if (data.topic === 'process') $('course-context').innerHTML = '<button class="secondary small" data-go="explore">Try the fork/wait model →</button>';
+    if (data.topic === 'scheduling') $('course-context').innerHTML = '<button class="secondary small" data-go="schedule">Try the CPU scheduling simulator →</button>';
+    $('course-results').innerHTML = renderSourceList(data.matches, `Retrieved passages · ${data.method.toUpperCase()}`);
+  } catch (error) { $('course-answer').innerHTML = `<p class="warning">${escapeHTML(error.message)}</p>`; }
 }
 
 function renderConcepts() {
@@ -88,22 +156,24 @@ async function answerPractice(answer) {
   } catch(error) { $('practice-feedback').textContent = error.message; }
 }
 
-async function analyse() {
-  $('result').innerHTML = '<p>Analysing evidence…</p>';
+async function reviewCode() {
+  const code = $('code').value.trim();
+  if (!code) { $('code').focus(); return; }
+  $('result').innerHTML = '<p>Inspecting source clues, retrieving course material, and asking the local model…</p>';
   try {
-    const data = await json('/api/analyse',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({experiment:$('experiment').value,mode:$('mode').value,question:$('question').value,code:$('code').value,output:$('output').value})});
-    let html = `<span class="tag">${escapeHTML(data.evidence_strength || data.execution_status)}</span><h2 style="margin-top:15px">${escapeHTML(data.likely_issue || 'Instructional evidence')}</h2>`;
-    if (data.supporting_signals?.length) html += `<h3>Evidence</h3><ul>${data.supporting_signals.map(x => `<li>${escapeHTML(x)}</li>`).join('')}</ul>`;
-    if (data.expected_behaviour?.length) html += `<h3>Expected vs inferred</h3><p><b>Expected:</b> ${escapeHTML(data.expected_behaviour.join(' → '))}</p><p><b>From source or pasted output:</b> ${escapeHTML(data.observed_behaviour.join(' → ') || 'No evidence supplied')}</p>`;
-    if (data.matched_failure_cases?.length) html += `<h3>Similar cases</h3><ul>${data.matched_failure_cases.map(x => `<li><b>${escapeHTML(x.id)}</b> · ${escapeHTML(x.failure_label)} · matching: ${escapeHTML(x.matched_signals.join(', '))}</li>`).join('')}</ul>`;
-    html += `<h3>Retrieved evidence</h3>${data.retrieved_sources.map(r => `<div class="source-row"><b>${escapeHTML(r.experiment_id)} · ${escapeHTML(r.section_type)}</b><p>${escapeHTML(r.text)}</p><small>${escapeHTML(r.source)} · lexical ${escapeHTML(r.lexical_score)} · LSA ${escapeHTML(r.semantic_score)} · fused ${escapeHTML(r.fused_score)}</small></div>`).join('')}`;
-    html += `<h3>Explanation</h3><p>${escapeHTML(data.explanation)}</p>`;
-    if (data.next_check) html += `<p><b>Next check:</b> ${escapeHTML(data.next_check)}</p>`;
-    if (data.visual_lesson) html += `<button class="primary small" id="open-lesson">Open visual explanation →</button>`;
-    html += `<details><summary>Technical view · complete structured result</summary><pre>${escapeHTML(JSON.stringify(data,null,2))}</pre></details>`;
+    const data = await json('/api/code/review', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({question:$('question').value, code, output:$('output').value})});
+    let html = `<div class="eyebrow">STATIC SOURCE CLUES</div><p><b>Detected OS calls:</b> ${escapeHTML(data.inspection.calls.join(', ') || 'none in the supported list')}</p>`;
+    if (data.inspection.findings.length) html += `<ul>${data.inspection.findings.map(item => `<li><b>${escapeHTML(item.observation)}</b>${item.lines?.length ? ` <small>Line ${item.lines.join(', ')}</small>` : ''} ${escapeHTML(item.next_check)}</li>`).join('')}</ul>`;
+    if (data.analysis_input_truncated) html += '<div class="model-notice">This review read the first 20,000 characters of pasted code. Split a larger program into smaller relevant pieces.</div>';
+    if (data.model_input_truncated) html += '<div class="model-notice">The local model received the first 6,000 characters, so its suggestions may miss later lines.</div>';
+    if (data.explanation) html += `<div class="answer-panel"><div class="eyebrow">${data.explanation.origin === 'static' ? 'CHECKED SOURCE WALKTHROUGH' : 'LOCAL MODEL SUGGESTION'}</div><p>${escapeHTML(data.explanation.answer)}</p>${!data.explanation.has_valid_citation ? '<div class="warning">No valid course citation appeared in this answer; check the sources below.</div>' : ''}<small>Source-based hypothesis · no code execution</small></div>`;
+    else html += `<div class="model-notice">${escapeHTML(data.model_error || 'No source-grounded model explanation available.')} Static clues and sources remain available.</div>`;
+    html += '<div id="code-visual"></div><div id="code-context"></div>' + renderSourceList(data.sources, 'Related course passages');
     $('result').innerHTML = html;
-    if (data.visual_lesson) $('open-lesson').onclick = async () => { $('use-wait').checked = !data.visual_lesson.endsWith('wait=0'); await loadScenario(); navigate('explore'); };
-  } catch(error) { $('result').innerHTML = `<h2>Analysis failed</h2><p>${escapeHTML(error.message)}</p>`; }
+    renderVisual($('code-visual'), data.visual, data.sources, code);
+    if (data.topic === 'process') $('code-context').innerHTML = '<button class="secondary small" data-go="explore">Try the fork/wait model →</button>';
+    if (data.topic === 'scheduling') $('code-context').innerHTML = '<button class="secondary small" data-go="schedule">Try the CPU scheduling simulator →</button>';
+  } catch (error) { $('result').innerHTML = `<p class="warning">${escapeHTML(error.message)}</p>`; }
 }
 
 function addProcess(id='',arrival=0,burst=2) {
@@ -171,6 +241,7 @@ function renderStudioEvaluation() {
 document.addEventListener('click', async event => {
   const go = event.target.closest('[data-go]'); if (go) { navigate(go.dataset.go); return; }
   const nav = event.target.closest('[data-page]'); if (nav) { navigate(nav.dataset.page); return; }
+  const query = event.target.closest('[data-query]'); if (query) { $('course-question').value = query.dataset.query; await searchCourse(); return; }
   const concept = event.target.closest('[data-concept]'); if (concept) { state.concept = concept.dataset.concept; renderConcepts(); return; }
   const step = event.target.closest('[data-step]'); if (step) { state.step = Number(step.dataset.step); renderScenario(); return; }
   const answer = event.target.closest('[data-answer]'); if (answer) { await answerPractice(answer.dataset.answer); return; }
@@ -179,6 +250,8 @@ document.addEventListener('click', async event => {
   const caseButton = event.target.closest('[data-case]'); if (caseButton) { state.studioCase = Number(caseButton.dataset.case); renderStudioBehaviour(); }
 });
 
+$('course-form').addEventListener('submit', async event => { event.preventDefault(); await searchCourse(); });
+
 window.addEventListener('hashchange', () => { const [page,query] = location.hash.slice(1).split('?'); if (page === 'explore' && query?.includes('wait=0')) { $('use-wait').checked = false; loadScenario(); } navigate(page); });
 $('use-wait').onchange = loadScenario;
 $('schedule').onchange = loadScenario;
@@ -186,22 +259,25 @@ $('step-back').onclick = () => { if (state.step > 0) { state.step--; renderScena
 $('step-next').onclick = () => { if (state.scenario && state.step < state.scenario.frames.length-1) { state.step++; renderScenario(); } };
 $('compare').onclick = compareRuns;
 $('practice-switch').onclick = async () => { $('use-wait').checked = !$('use-wait').checked; await loadScenario(); };
-$('analyse').onclick = analyse;
+$('analyse').onclick = reviewCode;
 $('add-process').onclick = () => addProcess(`P${document.querySelectorAll('.workload-row').length+1}`,0,2);
 $('run-schedule').onclick = runSchedule;
 $('schedule-back').onclick = () => { if (state.scheduleStep > 0) { state.scheduleStep--; renderSchedule(); } };
 $('schedule-next').onclick = () => { if (state.scheduleResult && state.scheduleStep < state.scheduleResult.frames.length-1) { state.scheduleStep++; renderSchedule(); } };
 $('schedule-final').onclick = () => { if (state.scheduleResult) { state.scheduleStep = state.scheduleResult.frames.length-1; renderSchedule(); } };
-$('load-demo').onclick = () => { $('experiment').value='FW01'; $('mode').value='Debug'; $('question').value='Why can the parent finish before the child?'; $('code').value=state.studio?.behaviour.cases.find(c=>c.id==='missing_wait_a')?.source_code || ''; $('output').value=''; };
+$('load-pipe-demo').onclick = () => { $('question').value = 'Why does this pipe reader keep waiting for EOF?'; $('code').value = '#include <unistd.h>\n#include <sys/wait.h>\nint main(void) {\n  int fds[2];\n  if (pipe(fds) == -1) return 1;\n  if (fork() == 0) {\n    char buf[32];\n    while (read(fds[0], buf, sizeof buf) > 0) { }\n  } else {\n    write(fds[1], "hello", 5);\n    wait(NULL);\n  }\n  return 0;\n}'; $('output').value = ''; };
+$('load-demo').onclick = () => { $('question').value = 'Why can the parent finish before the child?'; $('code').value = state.studio?.behaviour.cases.find(c=>c.id==='missing_wait_a')?.source_code || ''; $('output').value = ''; };
 
 (async function init(){
   try {
+    await loadCourseStatus();
+    await loadModelStatus();
     [state.concepts,state.records,state.studio,state.metrics] = await Promise.all([json('/api/concepts'),json('/api/records'),json('/api/studio'),json('/api/metrics')]);
     renderConcepts();
     addProcess('P1',0,5); addProcess('P2',1,3); addProcess('P3',2,1);
     const [page,query] = location.hash.slice(1).split('?');
     if (page === 'explore' && query?.includes('wait=0')) $('use-wait').checked = false;
     await loadScenario();
-    navigate(page || 'home');
+    navigate(page || 'course');
   } catch(error) { document.querySelector('main').insertAdjacentHTML('afterbegin',`<div class="warning">Could not load local data: ${escapeHTML(error.message)}</div>`); }
 })();

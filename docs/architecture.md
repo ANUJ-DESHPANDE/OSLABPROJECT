@@ -2,7 +2,9 @@
 
 ## Decision: keep evidence and model state separate
 
-OSLab Copilot has three kinds of facts. **Expected** facts describe a teaching model or experiment requirement. **Inferred** facts come from static source analysis. **Observed** facts require a real run or a user-supplied output, labelled by its provenance. These are kept separate in the behaviour records and Debug response. A deterministic teaching simulation never becomes an observed student trace.
+OS Lab Companion keeps three kinds of facts separate. **Expected** facts describe a teaching model or experiment requirement. **Inferred** facts come from static source analysis. **Observed** facts require a real run or a user-supplied output, labelled by its provenance. These are kept separate in the behaviour records and code review response. A deterministic teaching simulation never becomes an observed student trace.
+
+The current study path adds a fourth category: **retrieved source text** from the private course archive or clearly labeled original project lab notes. A local model can explain those passages and propose a visual sequence, but its output is generated text, not an observed fact. The original passages remain visible below every answer.
 
 ```mermaid
 flowchart TB
@@ -21,11 +23,23 @@ flowchart TB
   PM --> V[Explorer and deterministic practice]
   SM --> V
   D --> V
+  Z[Private course ZIP] --> E[Page, slide, document extraction]
+  E --> Q[Passage index with source locations]
+  Q --> H[BM25 + LSA + rank fusion]
+  K --> H
+  SQ[Student question] --> H
+  U --> CS[General static source checks]
+  CS --> H
+  H --> LM[Optional local model]
+  CS --> LM
+  LM --> GV[Question-specific cited visual steps]
 ```
 
 ## Backend modules
 
 - `oslab/knowledge.py` parses sectioned Markdown, deduplicates records and implements BM25, LSA and reciprocal rank fusion. The existing retrieval benchmark is held as a regression baseline.
+- `oslab/course.py` imports private PDF/PPTX/DOCX text and keeps file hashes and page/slide locations. Its local search index combines BM25, LSA and rank fusion over course passages plus separately labeled original project lab notes.
+- `oslab/code_review.py` extracts cautious OS API source clues with line numbers and builds a checked walkthrough for the pipe/EOF-loop pattern. `oslab/local_model.py` calls a localhost Ollama or llama.cpp server with a constrained JSON schema, validates source IDs and coverage, and returns an explanation and source-linked visual steps when evidence is sufficient.
 - `oslab/behaviour.py` builds reviewed fork/wait case records, extracts selected source signals and normalizes supported syscall trace names. Its regexes cover demonstration patterns, not arbitrary C control flow.
 - `oslab/studio.py` makes raw input, heading locations, source hashes, record metadata, source diffs and quality warnings inspectable. A 16-character dataset fingerprint hashes public source documents, reviewed case source and concept records. It is a change detector, not a release number.
 - `oslab/concepts.py` validates unique concept IDs and prerequisites. Concept records contain original claims, misconceptions, linked demo records where available and URLs for further reading.
@@ -44,4 +58,4 @@ Input contains one to eight processes with integer arrivals and CPU bursts. FCFS
 
 ## Security boundary
 
-No HTTP request can reach a compile or run path. The trusted Linux collector is a separate explicit command limited to checked-in examples. It lacks a container boundary and must never be repurposed to execute pasted student code. The app binds to `127.0.0.1`. Private documents are excluded from the public build by its fixed `data/demo/` input path and by `.gitignore`.
+No HTTP request can reach a compile or run path. The trusted Linux collector is a separate explicit command limited to checked-in examples. It lacks a container boundary and must never be repurposed to execute pasted student code. The app and local model bind to `127.0.0.1`. Private documents and the generated course index are stored in gitignored `data/private/`; the web app reads that index at startup.

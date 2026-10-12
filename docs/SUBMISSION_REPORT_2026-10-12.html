@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>OS Lab Companion — Project Report</title>
+  <style>
+    @page { size: A4; margin: 15mm 17mm; }
+    * { box-sizing: border-box; }
+    body { margin: 0; color: #111; font: 10.8pt/1.42 "Times New Roman", Times, serif; }
+    .page { break-after: page; }
+    .page:last-child { break-after: auto; }
+    h1 { font-size: 19pt; font-weight: bold; margin: 0 0 4mm; }
+    h2 { font-size: 13pt; margin: 7mm 0 2.5mm; }
+    h3 { font-size: 11pt; margin: 4.5mm 0 1.5mm; }
+    p { margin: 0 0 3.2mm; }
+    .meta { color: #333; margin-bottom: 7mm; }
+    .small { font-size: 9.2pt; }
+    .caption { font-size: 9pt; margin-top: 2mm; }
+    .flow { border: 1px solid #999; padding: 3mm; font: 9.5pt/1.4 Consolas, monospace; margin: 4mm 0; }
+    table { border-collapse: collapse; width: 100%; font-size: 9.7pt; margin: 3mm 0 4mm; }
+    th, td { border: 1px solid #777; padding: 2mm 2.5mm; text-align: left; vertical-align: top; }
+    th { font-weight: bold; background: #eee; }
+    .number { text-align: right; white-space: nowrap; }
+    img { display: block; max-width: 100%; height: auto; }
+    .figure { border: 1px solid #bbb; padding: 1.5mm; margin-top: 3mm; }
+    .page-mark { margin-top: 5mm; border-top: 1px solid #aaa; padding-top: 2mm; font-size: 8.5pt; color: #444; }
+  </style>
+</head>
+<body>
+  <section class="page">
+    <h1>OS Lab Companion</h1>
+    <p class="meta">Operating Systems Lab project report · 12 October 2026</p>
+    <p>We built a local study tool around the material supplied for our Operating Systems course. It searches the notes, shows the file and page or slide behind each result, and can ask a local language model to explain the retrieved text. It also reviews selected C lab-code patterns without running student code and has a separate CPU scheduling simulator.</p>
+
+    <h2>1. Dataset</h2>
+    <p>The main input was the course <code>OS.zip</code> archive. It contained 54 non-directory entries. We extracted searchable text from 33 files: 16 PPTX, 15 PDF and 2 DOCX. This produced 553 passages. We kept the original filename and page or slide for each passage. The archive and processed text stay on the local machine and are excluded from the public Git repository.</p>
+    <p>The importer skipped 21 entries: 19 were formats this version cannot extract as text, mainly older PowerPoint files and images; two were temporary or project-planning files. A separate public demo set has three short Markdown lab notes, split into 21 instructional sections, and five reviewed C cases. We use that small set for repeatable tests. It is not a substitute for the course archive.</p>
+    <p>We did not train or fine-tune the language model on these files. The application retrieves relevant passages at question time and sends only those passages, plus any pasted code, to a model running on this computer.</p>
+
+    <h2>2. Preprocessing</h2>
+    <p>The ZIP importer rejects unsafe paths and oversized entries, reads supported files, and records a reason for every skipped entry. PDF text is extracted page by page, PPTX text slide by slide, and DOCX text by paragraph. We normalize Unicode and spacing, divide long text into chunks of up to 210 words, and discard chunks shorter than 60 characters. A SHA-256 hash identifies each source file; a second stable ID identifies each passage.</p>
+    <p>The resulting local JSON index stores the text, file type, title, original location and hash. At search time we use BM25 for word matching and latent semantic analysis (TF-IDF followed by truncated SVD) for statistical similarity. Reciprocal-rank fusion combines their rankings. LSA is a local low-rank text method, not a neural embedding model.</p>
+    <div class="flow">Course ZIP → page/slide extraction → text cleanup → passages with source locations → BM25 + LSA → ranked evidence</div>
+    <p>The app exposes the per-file passage counts, hashes and skip reasons so that an import can be checked instead of treating the ZIP as a black box.</p>
+    <div class="page-mark">OS Lab Companion · Project report · 1 of 4</div>
+  </section>
+
+  <section class="page">
+    <h2>3. Code implementation</h2>
+    <p>The backend is Python and serves a local web interface. <code>oslab/course.py</code> performs import and hybrid retrieval. <code>oslab/code_review.py</code> finds selected OS calls such as <code>fork</code>, <code>pipe</code>, <code>read</code>, <code>wait</code>, mutex and semaphore calls; it reports source lines and cautious next checks. <code>oslab/local_model.py</code> calls a local Qwen3 4B instruction model through llama.cpp. The model returns structured answer points and visual steps with source IDs. The backend rejects invalid source IDs and suppresses an answer when the retrieved passages do not cover the question.</p>
+    <p>For a pipe reader looping until EOF with no <code>close()</code> call, the code reviewer produces a checked walkthrough from the source lines and pipe notes. This case is handled directly because our model tests showed it could invent descriptor operations. Other code questions may receive model suggestions, always labelled as hypotheses. Pasted code is never compiled or executed. The scheduling lab is separate Python logic for FCFS, nonpreemptive SJF and Round Robin; its timelines and waiting-time values are calculated, not generated by the model.</p>
+    <div class="flow">Question → retrieve passages → local explanation + cited visual<br>Code → static clues + retrieve passages → checked walkthrough or model suggestion<br>Workload → deterministic scheduling simulator → event timeline and metrics</div>
+    <div class="figure"><img src="images/code_import_excerpt.png" alt="Actual course importer source code with line numbers"></div>
+    <p class="caption">Figure 1. Actual lines from <code>oslab/course.py</code>. The importer creates passage IDs, preserves source location and records file hashes and extraction failures. Full source is in the repository.</p>
+    <p class="small">The local model is optional for basic retrieval, the checked pipe example and scheduling. The UI shows the original excerpts even when the model is unavailable.</p>
+    <div class="page-mark">OS Lab Companion · Project report · 2 of 4</div>
+  </section>
+
+  <section class="page">
+    <h2>4. Metrics, results and discussion</h2>
+    <p>The private course import gave 33 readable files and 553 passages from 54 entries. That is an extraction count, not a measure of answer accuracy. We have not yet labelled relevance judgments for the private course material, so we cannot report Recall@k or model accuracy on that archive.</p>
+    <p>For the small public demo set, we reran the repository evaluation. The parser found all 21 labelled Markdown headings across three files, with 1.000 heading precision and recall and complete recorded metadata. This only checks the controlled Markdown format; it says nothing about OCR or PDF extraction quality.</p>
+    <table>
+      <thead><tr><th>Retrieval method</th><th class="number">Recall@3</th><th class="number">MRR@10</th><th class="number">nDCG@10</th></tr></thead>
+      <tbody>
+        <tr><td>BM25</td><td class="number">0.917</td><td class="number">0.701</td><td class="number">0.777</td></tr>
+        <tr><td>LSA</td><td class="number">0.833</td><td class="number">0.722</td><td class="number">0.791</td></tr>
+        <tr><td>Hybrid rank fusion</td><td class="number">1.000</td><td class="number">0.847</td><td class="number">0.886</td></tr>
+      </tbody>
+    </table>
+    <p class="caption">Table 1. Twelve labelled queries over the small public demo corpus, one relevant section per query. These values must not be reported as performance on the professor's files.</p>
+    <p>The earlier fork/wait diagnostic benchmark matched all four held-out failure variants at rank 1. Two variants share each failure label, so 4/4 is a regression check for that narrow setup, not evidence that arbitrary student programs can be debugged. No Linux runtime traces were collected for this benchmark.</p>
+    <p>Manual checks of the current course search found relevant passages for page faults and semaphores. A request comparing disk-scheduling algorithms was a useful failure case: the ZIP contained a slide naming disk scheduling but not enough detail for that comparison. The app now says the evidence is insufficient and leaves the closest passages visible. The browser smoke check passed the theory, code review, scheduling and data views. None of these checks is a student learning study.</p>
+    <p class="small">Reproduce the controlled metrics with <code>python -m oslab evaluate</code>. The values above come from <code>results/processing_metrics.json</code>, <code>results/retrieval_metrics.json</code> and <code>results/diagnostic_metrics.json</code>.</p>
+    <div class="page-mark">OS Lab Companion · Project report · 3 of 4</div>
+  </section>
+
+  <section class="page">
+    <h2>5. What went wrong</h2>
+    <p>We began with a fork/wait lab example and kept building around it. By the time we tried to explain the project to someone else, the interface made that one example look like the main subject. That was our scope mistake. We moved the detailed process model behind relevant questions and made course-wide search the first screen.</p>
+    <p>We also assumed a ZIP of course material meant all of it was searchable. It was not. Nineteen entries were older presentation files or images that our extractor could not read as text. We now show the skipped entries and reasons. We have not converted those files or added OCR, so some course topics may still be missing from retrieval.</p>
+    <p>The local model needed more checking than we expected. The first smaller model reversed which process read and wrote a pipe. The 4B model gave a better explanation but, in one test, said the parent closed a descriptor when the pasted code had no <code>close()</code> call. We stopped using free-form model text for that specific EOF-loop pattern and built a source-line walkthrough instead. For other code, the model is still only a suggestion; a citation number does not prove its reasoning is correct.</p>
+    <p>Our first evaluation numbers looked stronger than the project really was. Hybrid retrieval reached 1.000 Recall@3, but only on 12 synthetic questions; the 4/4 diagnosis result came from closely related fork/wait variants. We now label those scores as controlled regression checks. We do not have a measured accuracy for the professor's archive. The disk-scheduling query exposed another problem: retrieval returned partly unrelated notes, and the model initially filled in algorithm details from its own knowledge. We added a coverage check that withholds a generated explanation when the source material does not support the requested comparison.</p>
+
+    <h2>6. Alternative flow and improvement</h2>
+    <p>If we repeated the work, we would first convert the older files and OCR image-based notes, then manually label a modest set of real course questions with relevant pages. We would test extraction and retrieval on that set before choosing or tuning a language model. That would tell us which errors come from missing text, poor ranking or generation.</p>
+    <p>For code review, the next step is a parser or compiler-assisted check and carefully isolated execution for approved examples. We would keep source inference, expected behavior and actual observed output separate. For teaching visuals, we would add tested simulators only where the state is computable, and keep model-made diagrams clearly labelled as explanations.</p>
+    <p class="small">The report describes the build as tested on 12 October 2026. Course files and model weights are local and are not part of the public source repository.</p>
+    <div class="page-mark">OS Lab Companion · Project report · 4 of 4</div>
+  </section>
+</body>
+</html>

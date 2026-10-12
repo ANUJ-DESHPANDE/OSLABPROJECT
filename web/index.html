@@ -3,38 +3,36 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>OSLab Copilot · Learn systems by observing state</title>
+  <title>OS Lab Companion</title>
   <link rel="stylesheet" href="/app.css">
   <link rel="stylesheet" href="/schedule.css">
+  <link rel="stylesheet" href="/course.css">
   <script defer src="/app.js"></script>
 </head>
 <body>
   <div class="shell">
     <aside class="sidebar">
-      <a class="brand" href="#home"><span class="brand-icon">⌘</span><span>OSLab<br><strong>Copilot</strong></span></a>
+      <a class="brand" href="#course"><span class="brand-icon">OS</span><span>OS Lab<br><strong>Companion</strong></span></a>
       <div class="side-label">WORKSPACE</div>
       <nav aria-label="Main navigation">
-        <button data-page="home" class="nav-item active"><span>⌂</span> Overview</button>
-        <button data-page="learn" class="nav-item"><span>▤</span> Learn</button>
-        <button data-page="explore" class="nav-item"><span>◇</span> Process Explorer</button>
-        <button data-page="schedule" class="nav-item"><span>▥</span> Scheduling Lab</button>
-        <button data-page="practice" class="nav-item"><span>✓</span> Predict & Practice</button>
-        <button data-page="debug" class="nav-item"><span>⌘</span> Debug Lab Code</button>
-        <button data-page="studio" class="nav-item"><span>▦</span> Dataset Studio</button>
+        <button data-page="course" class="nav-item active">Ask OS</button>
+        <button data-page="debug" class="nav-item">Review lab code</button>
+        <button data-page="schedule" class="nav-item">Scheduling lab</button>
+        <button data-page="studio" class="nav-item">How the data works</button>
       </nav>
-      <div class="sidebar-foot"><span class="live-dot"></span> Local evidence engine<br><small>Student code is never executed</small></div>
+      <div class="sidebar-foot">Local course index<br><small>Sources and code stay on this computer</small></div>
     </aside>
     <div class="workspace">
-      <header class="topbar"><div id="breadcrumb">OVERVIEW / START HERE</div><div class="topright"><span>PROCESS LAB · FW01</span><span class="version">DEMO v1</span></div></header>
+      <header class="topbar"><div id="breadcrumb">ASK OS</div><div class="topright"><span>LOCAL COURSE WORKSPACE</span></div></header>
       <main>
-        <section id="page-home" class="page active">
-          <div class="eyebrow">OPERATING SYSTEMS, MADE OBSERVABLE</div>
-          <h1>Understand the system.<br><em>Then debug the program.</em></h1>
-          <p class="intro">Explore a process model, predict its next state, inspect the evidence behind an answer, and connect the concept to your own lab code.</p>
-          <div class="hero-actions"><button class="primary" data-go="explore">Explore fork & wait <span>→</span></button><button class="secondary" data-go="studio">Inspect the datasets</button></div>
-          <div class="flow"><div><b>01</b><strong>Learn</strong><small>Build the mental model</small></div><div><b>02</b><strong>Explore</strong><small>Step through state</small></div><div><b>03</b><strong>Predict</strong><small>Test your understanding</small></div><div><b>04</b><strong>Debug</strong><small>Compare against evidence</small></div></div>
-          <div class="section-heading"><div><div class="eyebrow">CURRENTLY IMPLEMENTED</div><h2>One connected process journey</h2></div><span class="quiet">More OS areas are planned</span></div>
-          <div class="cards-3"><button class="feature-card" data-go="learn"><span class="feature-icon">▤</span><strong>Concept library</strong><p>Read original explanations and follow prerequisites from process state to fork, wait and exec.</p><span class="card-link">Open concepts →</span></button><button class="feature-card" data-go="explore"><span class="feature-icon">◇</span><strong>Process Explorer</strong><p>Remove wait, switch a valid schedule, then step through the parent and child timeline.</p><span class="card-link">Run scenario →</span></button><button class="feature-card" data-go="studio"><span class="feature-icon">▦</span><strong>Dataset Studio</strong><p>Trace raw Markdown and C variants into records, features, warnings and measured results.</p><span class="card-link">Inspect pipeline →</span></button></div>
+        <section id="page-course" class="page active">
+          <div class="eyebrow">COURSE-WIDE STUDY TOOL</div><h1>Ask an OS question.</h1>
+          <p class="intro">The app searches your local course material, explains the matching passages, and builds a short visual walkthrough for the specific question. Every result keeps its source.</p>
+          <div id="course-status" class="course-status">Checking local course index…</div>
+          <div id="model-status" class="model-status">Checking local explanation model…</div>
+          <form id="course-form" class="course-form"><label for="course-question">What would you like to understand?</label><div class="course-search-row"><input id="course-question" type="search" placeholder="e.g. Why does a page fault happen?" autocomplete="off"><button class="primary" type="submit">Explain from notes</button></div><details class="search-settings"><summary>Search method</summary><label for="course-method">Rank passages with</label><select id="course-method"><option value="hybrid">Hybrid (BM25 + LSA)</option><option value="bm25">Keyword (BM25)</option><option value="lsa">Concept similarity (LSA)</option></select><p>Hybrid combines keyword and low-rank semantic ranking. LSA is local statistical text analysis, not neural embeddings.</p></details></form>
+          <div class="suggestions"><span>Try:</span><button data-query="Why does a page fault happen?">page faults</button><button data-query="How does a semaphore coordinate threads?">semaphores</button><button data-query="What conditions cause deadlock?">deadlocks</button><button data-query="What does fork return in parent and child?">process creation</button></div>
+          <div id="course-answer"></div><div id="course-visual"></div><div id="course-context"></div><div id="course-results" class="course-results"></div>
         </section>
         <section id="page-learn" class="page">
           <div class="eyebrow">LEARN / PROCESSES</div><h1>Concepts that connect.</h1><p class="intro">Follow the prerequisites, inspect the linked instructional records, and move into a working model when you are ready.</p>
@@ -58,18 +56,20 @@
           <div class="panel" style="margin-top:20px"><div class="panel-heading"><h2>CPU timeline</h2><span class="quiet">Each cell is one time unit</span></div><div id="gantt" class="gantt"></div><div id="schedule-metrics"></div></div>
         </section>
         <section id="page-debug" class="page">
-          <div class="eyebrow">DEBUG / SOURCE-BASED DIAGNOSIS</div><h1>Bring your lab code.</h1><p class="intro">Compare source clues with expected behaviour and inspected failure cases. Pasted code is never executed.</p>
-          <div class="debug-grid"><div class="panel form-panel"><label>Experiment<select id="experiment"><option value="FW01">FW01 · fork and wait</option><option value="EX01">EX01 · exec</option><option value="PI01">PI01 · pipe</option></select></label><label>Mode<select id="mode"><option>Debug</option><option>Learn</option><option>Procedure</option><option>Viva</option></select></label><label>Question<textarea id="question" placeholder="What happened, or what would you like to understand?"></textarea></label><label>Optional C or shell code<textarea id="code" class="code-input" spellcheck="false" placeholder="Paste code for static analysis"></textarea></label><label>Optional compiler or runtime output<textarea id="output" spellcheck="false" placeholder="Paste output you observed"></textarea></label><button class="primary" id="analyse">Analyse evidence →</button><button class="text-button" id="load-demo">Load missing-wait example</button><p class="caption">No compile, run, or trace is performed on student submissions.</p></div><div class="panel result-panel" id="result"><div class="empty-result"><span>⌘</span><h2>Evidence first.</h2><p>Analyse a program to see the diagnosis, inferred signals, matched cases and source records.</p></div></div></div>
+          <div class="eyebrow">LAB CODE REVIEW</div><h1>Understand your code.</h1><p class="intro">Paste C or shell code and describe what you expected. The app extracts OS-related source clues, retrieves course passages, and asks the local model for possible causes and next checks. It never executes your code.</p>
+          <div class="debug-grid"><div class="panel form-panel"><label>What are you trying to do or fix?<textarea id="question" placeholder="e.g. Why does my pipe reader keep waiting?"></textarea></label><label>Your C or shell code<textarea id="code" class="code-input" spellcheck="false" placeholder="Paste OS lab code here"></textarea></label><label>Observed output, if any<textarea id="output" spellcheck="false" placeholder="Paste compiler or runtime output you saw"></textarea></label><button class="primary" id="analyse">Review code →</button><button class="text-button" id="load-pipe-demo">Load pipe example</button><button class="text-button" id="load-demo">Load fork/wait example</button><p class="caption">Static checks are clues, not proof. The local model gives suggestions; no compilation or execution is performed.</p></div><div class="panel result-panel" id="result"><div class="empty-result"><h2>Start with a question and some code.</h2><p>You will see detected calls, cautious checks, related notes, and an explanation grounded in those sources.</p></div></div></div>
         </section>
         <section id="page-studio" class="page">
-          <div class="eyebrow">DATASET STUDIO / INSPECT THE PIPELINE</div><h1>Where the evidence comes from.</h1><p class="intro">Inspect the raw demo files, the transformations applied, and the records used by retrieval and diagnosis.</p>
+          <div class="eyebrow">DATA PROCESSING</div><h1>How the evidence is made.</h1><p class="intro">See the course import, retrieval methods, source locations, skipped formats, and the separate labeled lab examples.</p>
+          <div id="course-pipeline" class="panel course-pipeline"></div>
+          <h2>Controlled lab datasets</h2><p class="quiet">These are small public examples used to test processing and code diagnosis. The private course index is separate.</p>
           <div id="studio-summary" class="stats"></div>
           <div class="panel pipeline-panel"><div class="panel-heading"><h2>Instructional processing</h2><span id="dataset-version" class="tag"></span></div><div id="pipeline" class="pipeline"></div></div>
           <div class="studio-tabs"><button class="active" data-studio="knowledge">Knowledge corpus</button><button data-studio="behaviour">Behaviour corpus</button><button data-studio="evaluation">Evaluation</button></div>
           <div id="studio-content" class="panel studio-content"></div>
         </section>
       </main>
-      <footer>OSLab Copilot · Local teaching model and evidence pipeline · Runtime traces unavailable in this demo</footer>
+      <footer>OS Lab Companion · Course search and teaching tools run locally · Pasted code is inspected, never executed</footer>
     </div>
   </div>
 </body>

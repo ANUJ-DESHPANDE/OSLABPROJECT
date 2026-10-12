@@ -12,6 +12,10 @@ from .concepts import load_concepts
 from .process_model import grade_prediction, scenario
 from .studio import save_audit
 from .scheduling import simulate
+from .course import CourseSearch, import_course
+from .code_review import inspect_code, pipe_eof_walkthrough, retrieval_query
+from .local_model import explain, status as model_status
+from .visuals import choose_visual
 
 
 def build():
@@ -30,9 +34,11 @@ def serve(port):
     page = Path("web/index.html").read_bytes()
     stylesheet = Path("web/app.css").read_bytes()
     schedule_stylesheet = Path("web/schedule.css").read_bytes()
+    course_stylesheet = Path("web/course.css").read_bytes()
     script = Path("web/app.js").read_bytes()
     studio = save_audit()
     concepts = load_concepts()
+    course = CourseSearch.load(include_demo=True)
 
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self):
@@ -44,6 +50,8 @@ def serve(port):
                 body, kind = stylesheet, "text/css; charset=utf-8"
             elif route == "/schedule.css":
                 body, kind = schedule_stylesheet, "text/css; charset=utf-8"
+            elif route == "/course.css":
+                body, kind = course_stylesheet, "text/css; charset=utf-8"
             elif route == "/app.js":
                 body, kind = script, "text/javascript; charset=utf-8"
             elif route == "/api/records":
@@ -54,6 +62,10 @@ def serve(port):
                 body, kind = json.dumps(studio).encode(), "application/json"
             elif route == "/api/concepts":
                 body, kind = json.dumps(concepts).encode(), "application/json"
+            elif route == "/api/course/status":
+                body, kind = json.dumps(course.status() if course else {"ready": False}).encode(), "application/json"
+            elif route == "/api/model/status":
+                body, kind = json.dumps(model_status()).encode(), "application/json"
             elif route == "/api/metrics":
                 body, kind = json.dumps({"processing": json.loads(Path("results/processing_metrics.json").read_text(encoding="utf-8")),
                                           "retrieval": json.loads(Path("results/retrieval_metrics.json").read_text(encoding="utf-8")),
@@ -76,7 +88,7 @@ def serve(port):
             self.wfile.write(body)
 
         def do_POST(self):
-            if self.path not in {"/api/analyse", "/api/practice", "/api/schedule"}:
+            if self.path not in {"/api/analyse", "/api/practice", "/api/schedule", "/api/course/search", "/api/course/ask", "/api/code/review"}:
                 self.send_error(404)
                 return
             try:
@@ -86,7 +98,55 @@ def serve(port):
                 data = json.loads(self.rfile.read(length))
                 if not isinstance(data, dict):
                     raise ValueError("Request body must be a JSON object")
-                if self.path == "/api/schedule":
+                if self.path in {"/api/course/search", "/api/course/ask"}:
+                    question = str(data.get("question", "")).strip()[:500]
+                    if not question:
+                        raise ValueError("Enter a question or search phrase")
+                    method = str(data.get("method", "hybrid"))
+                    matches = course.search(question, method=method) if course else []
+                    result = {"matches": matches,
+                              "ready": course is not None, "method": method}
+                    if self.path == "/api/course/ask" and matches:
+                        try:
+                            hint = choose_visual(question, matches)
+                            result["topic"] = hint["id"] if hint else None
+                            result["explanation"] = explain(question, matches[:4],
+                                                            topic_hint=hint["title"] if hint else None)
+                            result["visual"] = result["explanation"]["visual"]
+                        except RuntimeError as error:
+                            result["model_error"] = str(error)
+                elif self.path == "/api/code/review":
+                    raw_code = str(data.get("code", ""))
+                    code = raw_code[:20000]
+                    question = str(data.get("question", "")).strip()[:500]
+                    observed = str(data.get("output", ""))[:3000]
+                    if not code.strip():
+                        raise ValueError("Paste code to review")
+                    inspection = inspect_code(code)
+                    query = retrieval_query(question, inspection)
+                    candidates = course.search(query, limit=10) if course and query else []
+                    sources = [item for item in candidates if not item["location"].startswith("Viva")][:4]
+                    result = {"inspection": inspection, "sources": sources,
+                              "model_input_truncated": len(code) > 6000,
+                              "analysis_input_truncated": len(raw_code) > 20000,
+                              "user_supplied_output": bool(observed)}
+                    if sources:
+                        hint = choose_visual(question, sources, inspection["topics"])
+                        result["topic"] = hint["id"] if hint else None
+                        checked = pipe_eof_walkthrough(code, inspection, sources)
+                        if checked:
+                            result["explanation"] = checked
+                            result["visual"] = checked["visual"]
+                        else:
+                            try:
+                                result["explanation"] = explain(question or "Review this OS lab code", sources,
+                                                                code=code, observations=observed,
+                                                                inspection=inspection,
+                                                                topic_hint=hint["title"] if hint else None)
+                                result["visual"] = result["explanation"]["visual"]
+                            except RuntimeError as error:
+                                result["model_error"] = str(error)
+                elif self.path == "/api/schedule":
                     result = simulate(data.get("processes"), data.get("algorithm", "FCFS"), data.get("quantum", 2))
                 elif self.path == "/api/practice":
                     use_wait = data.get("use_wait")
@@ -102,6 +162,7 @@ def serve(port):
                     question = str(data.get("question", ""))[:3000]
                     if mode == "Debug":
                         result = diagnose(str(data.get("code", ""))[:50000], str(data.get("output", ""))[:10000], experiment, retriever, cases, question)
+                        result["course_sources"] = course.search("fork waitpid parent child", limit=2) if course and experiment == "FW01" else []
                     else:
                         sources = retriever.search(question, experiment, mode, k=5)
                         result = {"likely_issue": None, "retrieved_sources": sources,
@@ -118,16 +179,18 @@ def serve(port):
             self.wfile.write(body)
 
     server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
-    print(f"OSLab Copilot: http://127.0.0.1:{port}")
+    print(f"OS Lab Companion: http://127.0.0.1:{port}")
     server.serve_forever()
 
 
 def main():
-    parser = argparse.ArgumentParser(description="OSLab Copilot local demo")
+    parser = argparse.ArgumentParser(description="OS Lab Companion local demo")
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("build")
     sub.add_parser("evaluate")
     sub.add_parser("collect-trusted")
+    imported = sub.add_parser("import-course")
+    imported.add_argument("zip_path", help="local ZIP of course PDFs, PPTX and DOCX files")
     inspect = sub.add_parser("inspect")
     inspect.add_argument("dataset", choices=["knowledge", "behaviour"])
     web = sub.add_parser("serve")
@@ -142,6 +205,10 @@ def main():
         from .collect import collect_trusted
         cases = collect_trusted()
         print(f"Collected trusted execution evidence for {len(cases)} cases")
+    elif args.command == "import-course":
+        payload = import_course(args.zip_path)
+        print(f"Indexed {len(payload['documents'])} documents into {len(payload['records'])} passages; "
+              f"skipped {len(payload['skipped'])} files. Private index: data/private/processed/course_index.json")
     elif args.command == "inspect":
         build()
         print(Path(f"data/processed/{args.dataset}.json").read_text(encoding="utf-8"))
