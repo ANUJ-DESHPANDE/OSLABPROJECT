@@ -54,7 +54,7 @@ The private course archive has not been given a labeled relevance benchmark. The
 
 Run tests with `python -m unittest discover -s tests -q`. For a short presentation script and honest answers to likely questions, see the [review guide](docs/REVIEW_GUIDE.md).
 
-The four-page [submission report](docs/SUBMISSION_REPORT_2026-10-12.pdf) covers dataset, preprocessing, implementation, controlled metrics, problems encountered, and a revised workflow. Its editable source is [HTML](docs/SUBMISSION_REPORT_2026-10-12.html).
+The five-page [submission report](docs/SUBMISSION_REPORT_2026-10-12.pdf) covers dataset, preprocessing, implementation, controlled metrics, problems encountered, and a revised workflow. Its editable source is [HTML](docs/SUBMISSION_REPORT_2026-10-12.html).
 
 ## License
 
