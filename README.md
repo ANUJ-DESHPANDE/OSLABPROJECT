@@ -8,7 +8,7 @@ From this folder in PowerShell:
 
 ```powershell
 python -m pip install -r requirements.txt
-python -m oslab import-course "C:\Users\adita\Downloads\OS.zip"
+python -m oslab import-course "$env:USERPROFILE\Downloads\OS.zip"
 python -m oslab serve --port 8001
 ```
 
@@ -52,9 +52,7 @@ Visual steps are generated for retrieved theory questions, with a source number 
 
 The private course archive has not been given a labeled relevance benchmark. The public synthetic dataset has separate labeled retrieval and diagnostic checks, described in [evaluation](docs/evaluation.md), but those numbers must not be presented as accuracy on the university archive. Scanned images and legacy `.ppt`/`.doc` are not extracted. The model can still make mistakes; inspect the cited passages before relying on an answer.
 
-Run tests with `python -m unittest discover -s tests -q`. For a short presentation script and honest answers to likely questions, see the [review guide](docs/REVIEW_GUIDE.md).
-
-The five-page [submission report](docs/SUBMISSION_REPORT_2026-10-12.pdf) covers dataset, preprocessing, implementation, controlled metrics, problems encountered, and a revised workflow. Its editable source is [HTML](docs/SUBMISSION_REPORT_2026-10-12.html).
+Run tests with `python -m unittest discover -s tests -q`. Technical details are in [architecture](docs/architecture.md), [dataset](docs/dataset.md), and [evaluation](docs/evaluation.md).
 
 ## License
 

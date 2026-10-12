@@ -10,3 +10,10 @@ artifacts/
 tmp/
 models/
 *.exe
+
+# Local submission and presentation material
+docs/SUBMISSION_*
+docs/IMPLEMENTATION_PROGRESS_FINAL.md
+docs/IMPLEMENTATION_STATUS.md
+docs/REVIEW_GUIDE.md
+docs/images/code_import_excerpt.png
