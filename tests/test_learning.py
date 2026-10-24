@@ -81,6 +81,30 @@ class SchedulingTests(unittest.TestCase):
         self.assertEqual([slot["process"] for slot in result["gantt"]], ["P1","P1","P2","P2","P1","P1","P3","P2"])
         self.assertEqual(result["metrics"]["P3"]["response"], 4)
 
+    def test_srtf_interrupts_for_shorter_remaining_job(self):
+        jobs = [{"id": "P1", "arrival": 0, "burst": 5}, {"id": "P2", "arrival": 1, "burst": 2}]
+        result = simulate(jobs, "SRTF")
+        self.assertEqual([x["process"] for x in result["gantt"]], ["P1", "P2", "P2"] + ["P1"]*4)
+        self.assertEqual(result["metrics"]["P2"]["response"], 0)
+
+    def test_priority_one_is_highest_and_nonpreemptive(self):
+        jobs = [{"id": "P1", "arrival": 0, "burst": 2, "priority": 3},
+                {"id": "P2", "arrival": 0, "burst": 2, "priority": 1}]
+        result = simulate(jobs, "PRIORITY")
+        self.assertEqual([x["process"] for x in result["gantt"]], ["P2", "P2", "P1", "P1"])
+
+    def test_multilevel_queue_foreground_interrupts_background(self):
+        jobs = [{"id": "P1", "arrival": 0, "burst": 5, "queue": 1},
+                {"id": "P2", "arrival": 1, "burst": 2, "queue": 0}]
+        result = simulate(jobs, "MLQ", 2)
+        self.assertEqual([x["process"] for x in result["gantt"]], ["P1", "P2", "P2"] + ["P1"]*4)
+
+    def test_multilevel_feedback_demotes_then_preempts_for_new_high_job(self):
+        jobs = [{"id": "P1", "arrival": 0, "burst": 5}, {"id": "P2", "arrival": 3, "burst": 1}]
+        result = simulate(jobs, "MLFQ", 2)
+        self.assertEqual([x["process"] for x in result["gantt"]], ["P1"]*3 + ["P2"] + ["P1"]*2)
+        self.assertTrue(any(f["event"] == "DEMOTE" for f in result["frames"]))
+
     def test_invalid_workload_rejected(self):
         with self.assertRaises(ValueError):
             simulate([{"id":"P1","arrival":0,"burst":0}], "RR", 2)

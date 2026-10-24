@@ -4,6 +4,12 @@ import re
 
 
 def inspect_code(code):
+    """Find selected OS calls and cautious source clues without running code.
+
+    Comments and string literals are removed first so an example mentioned in a
+    comment does not masquerade as a real call. This is text inspection, not a
+    C parser or proof of runtime behavior.
+    """
     clean = re.sub(r"/\*.*?\*/|//[^\n]*",
                    lambda match: "\n" * match.group().count("\n"), code, flags=re.S)
     clean = re.sub(r'"(?:\\.|[^"\\])*"', '""', clean)
@@ -19,6 +25,7 @@ def inspect_code(code):
     findings = []
 
     def add(topic, observation, next_check, relevant=()):
+        # Every warning points to a check the student can perform, not a verdict.
         findings.append({"topic": topic, "observation": observation, "next_check": next_check,
                          "lines": sorted({line for name in relevant for line in positions[name]}),
                          "evidence_level": "source_signal_not_runtime_proof"})
@@ -64,6 +71,7 @@ def inspect_code(code):
 
 
 def retrieval_query(question, inspection):
+    """Add OS terms suggested by detected calls to search the course index."""
     terms = {
         "processes": "fork waitpid process parent child",
         "pipes": "pipe file descriptor close read write IPC EOF",
@@ -77,7 +85,11 @@ def retrieval_query(question, inspection):
 
 
 def pipe_eof_walkthrough(code, inspection, sources):
-    """Explain the narrow, statically provable pipe/EOF loop pattern."""
+    """Explain one checked pipe/EOF pattern using pasted line numbers.
+
+    The source proves that no close() call is written here; it does not prove
+    what this student's program did at runtime.
+    """
     calls = set(inspection["calls"])
     if not {"pipe", "fork", "read"} <= calls or "close" in calls:
         return None

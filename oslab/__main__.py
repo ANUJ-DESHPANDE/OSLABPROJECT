@@ -1,3 +1,5 @@
+"""Command-line entry point and localhost HTTP routes for the browser UI."""
+
 import argparse
 import json
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -12,13 +14,14 @@ from .concepts import load_concepts
 from .process_model import grade_prediction, scenario
 from .studio import save_audit
 from .scheduling import simulate
-from .course import CourseSearch, import_course
+from .course import CourseSearch, REFERENCE_INDEX_PATH, import_course
 from .code_review import inspect_code, pipe_eof_walkthrough, retrieval_query
 from .local_model import explain, status as model_status
 from .visuals import choose_visual
 
 
 def build():
+    """Refresh the small public demo records and audit; private indexes stay local."""
     records = load_demo()
     save_json("data/processed/knowledge.json", records)
     cases = save_cases()
@@ -29,6 +32,7 @@ def build():
 
 
 def serve(port):
+    """Load local datasets once, then serve UI files and narrow JSON endpoints."""
     records, cases = build()
     retriever = Retriever(records)
     page = Path("web/index.html").read_bytes()
@@ -38,7 +42,7 @@ def serve(port):
     script = Path("web/app.js").read_bytes()
     studio = save_audit()
     concepts = load_concepts()
-    course = CourseSearch.load(include_demo=True)
+    course = CourseSearch.load(include_demo=True, reference_index_path=REFERENCE_INDEX_PATH)
 
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self):
@@ -99,13 +103,16 @@ def serve(port):
                 if not isinstance(data, dict):
                     raise ValueError("Request body must be a JSON object")
                 if self.path in {"/api/course/search", "/api/course/ask"}:
+                    # Search returns original passages. /ask additionally asks the local
+                    # model to explain at most four of them with checked source IDs.
                     question = str(data.get("question", "")).strip()[:500]
                     if not question:
                         raise ValueError("Enter a question or search phrase")
                     method = str(data.get("method", "hybrid"))
-                    matches = course.search(question, method=method) if course else []
+                    scope = str(data.get("scope", "course"))
+                    matches = course.search(question, method=method, scope=scope) if course else []
                     result = {"matches": matches,
-                              "ready": course is not None, "method": method}
+                              "ready": course is not None, "method": method, "scope": scope}
                     if self.path == "/api/course/ask" and matches:
                         try:
                             hint = choose_visual(question, matches)
@@ -116,6 +123,7 @@ def serve(port):
                         except RuntimeError as error:
                             result["model_error"] = str(error)
                 elif self.path == "/api/code/review":
+                    # This path only inspects pasted text. It cannot compile or run it.
                     raw_code = str(data.get("code", ""))
                     code = raw_code[:20000]
                     question = str(data.get("question", "")).strip()[:500]
@@ -147,6 +155,7 @@ def serve(port):
                             except RuntimeError as error:
                                 result["model_error"] = str(error)
                 elif self.path == "/api/schedule":
+                    # Numeric timelines come from deterministic Python, not the LLM.
                     result = simulate(data.get("processes"), data.get("algorithm", "FCFS"), data.get("quantum", 2))
                 elif self.path == "/api/practice":
                     use_wait = data.get("use_wait")
@@ -191,6 +200,8 @@ def main():
     sub.add_parser("collect-trusted")
     imported = sub.add_parser("import-course")
     imported.add_argument("zip_path", help="local ZIP of course PDFs, PPTX and DOCX files")
+    reference = sub.add_parser("import-reference")
+    reference.add_argument("zip_path", help="local ZIP of textbook PDF and publisher companion slides")
     inspect = sub.add_parser("inspect")
     inspect.add_argument("dataset", choices=["knowledge", "behaviour"])
     web = sub.add_parser("serve")
@@ -209,6 +220,10 @@ def main():
         payload = import_course(args.zip_path)
         print(f"Indexed {len(payload['documents'])} documents into {len(payload['records'])} passages; "
               f"skipped {len(payload['skipped'])} files. Private index: data/private/processed/course_index.json")
+    elif args.command == "import-reference":
+        payload = import_course(args.zip_path, REFERENCE_INDEX_PATH, max_entry_size=35_000_000)
+        print(f"Indexed {len(payload['documents'])} textbook resource files into {len(payload['records'])} passages; "
+              f"skipped {len(payload['skipped'])} files. Private index: {REFERENCE_INDEX_PATH}")
     elif args.command == "inspect":
         build()
         print(Path(f"data/processed/{args.dataset}.json").read_text(encoding="utf-8"))

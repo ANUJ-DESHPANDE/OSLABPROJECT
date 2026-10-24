@@ -12,6 +12,10 @@ The current local `OS.zip` yielded **33 extractable documents and 553 search pas
 
 Search ranks each passage with BM25 and LSA (TF-IDF bigrams reduced with truncated SVD), then combines ranks by reciprocal-rank fusion. LSA is a statistical dense representation, not a neural embedding. The private archive does not yet have independently labeled retrieval relevance scores. Public benchmark numbers elsewhere in this repository refer only to the small synthetic Markdown corpus.
 
+## Local textbook resources
+
+A separate, gitignored index contains a locally supplied *Operating System Concepts* 8th-edition PDF (2,301 passages) and 21 Wiley publisher companion slide decks for the prescribed 10th edition (1,144 passages). Together they add 3,445 passages from 22 files. The full prescribed 10th-edition textbook is not present. The Ask OS screen defaults to faculty course notes; its source selector can include or isolate textbook resources. Search cards identify the edition and source type. The PDF and slide decks stay under `data/private/` and are not redistributed in the repository. No labelled relevance set exists for this reference collection.
+
 ## Knowledge pipeline
 
 ```text

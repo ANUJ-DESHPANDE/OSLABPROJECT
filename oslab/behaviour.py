@@ -1,3 +1,5 @@
+"""Small public code-case dataset used for controlled static regression checks."""
+
 import re
 from pathlib import Path
 from .knowledge import save_json
@@ -21,6 +23,7 @@ def normalize_trace(raw):
 
 
 def static_features(source):
+    """Extract simple fork/wait signals from known examples, without executing C."""
     clean = re.sub(r"/\*.*?\*/|//[^\n]*", "", source, flags=re.S)
     clean = re.sub(r'"(?:\\.|[^"\\])*"', '""', clean)
     wait = bool(re.search(r"\bwait(?:pid)?\s*\(", clean))
@@ -45,6 +48,7 @@ CASES = {
 
 
 def build_cases():
+    """Build labelled example records; runtime fields stay empty until observed."""
     result = []
     for name, (label, mutation, baseline) in CASES.items():
         path = Path("data/programs/fork_wait") / (name + ".c")
@@ -71,6 +75,7 @@ def save_cases(path="data/processed/behaviour.json"):
 
 
 def match_cases(features, cases, exclude_id=None, top_k=3):
+    """Rank similar reviewed cases by four static signals, not bug certainty."""
     keys = ("fork_present", "wait_present", "wait_in_child_branch", "parent_wait_present")
     scored = []
     for case in cases:

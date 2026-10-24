@@ -28,11 +28,14 @@ async function loadCourseStatus() {
     state.courseStatus = await json('/api/course/status');
     const status = state.courseStatus;
     $('course-status').textContent = status.ready
-      ? `${status.documents} course files · ${status.passages} course passages + ${status.supplemental_passages} project lab notes · stored locally`
+      ? `${status.documents} course files · ${status.passages} course passages · ${status.reference_documents || 0} textbook resource files · ${status.reference_passages || 0} textbook passages · stored locally`
       : 'No local course index found. Import your course ZIP to enable cited search.';
     $('course-pipeline').innerHTML = status.ready
       ? `<h2>Private course data</h2><div class="course-pipeline-steps"><span>ZIP</span><span>Extract by page/slide</span><span>Clean and chunk</span><span>Keep source metadata</span><span>BM25 + LSA ranking</span><span>Local explanation</span></div><p><b>${status.documents} of ${status.documents + status.skipped}</b> archive files became <b>${status.passages}</b> passages. The search also includes <b>${status.supplemental_passages}</b> clearly labeled original project lab notes. Formats: ${escapeHTML(Object.entries(status.formats).map(([name,count]) => `${name.toUpperCase()} ${count}`).join(', '))}.</p><p><b>Skipped:</b> ${escapeHTML(Object.entries(status.skip_reasons).map(([reason,count]) => `${count} ${reason}`).join('; '))}.</p><details class="course-inventory"><summary>Inspect imported files and their fingerprints</summary><div class="inventory-scroll"><table class="metric-table"><thead><tr><th>Source file</th><th>Format</th><th>Passages</th><th>SHA-256</th></tr></thead><tbody>${status.source_inventory.map(item => `<tr><td>${escapeHTML(item.source)}</td><td>${escapeHTML(item.format.toUpperCase())}</td><td>${item.chunks}</td><td><code title="${escapeHTML(item.sha256)}">${escapeHTML(item.sha256.slice(0,12))}…</code></td></tr>`).join('')}</tbody></table></div></details><details class="course-inventory"><summary>Inspect skipped archive entries</summary><div class="inventory-scroll"><table class="metric-table"><thead><tr><th>Archive entry</th><th>Reason</th></tr></thead><tbody>${status.skipped_entries.map(item => `<tr><td>${escapeHTML(item.source)}</td><td>${escapeHTML(item.reason)}</td></tr>`).join('')}</tbody></table></div></details>`
       : '<h2>Private course data</h2><p>Import a course ZIP locally to enable the course index.</p>';
+    if (status.ready && status.reference_documents) {
+      $('course-pipeline').insertAdjacentHTML('beforeend', `<p><b>OS Concepts textbook resources:</b> ${status.reference_formats.pdf || 0} locally supplied 8th-edition PDF and ${status.reference_formats.pptx || 0} publisher companion slide decks for the prescribed 10th edition, producing ${status.reference_passages} passages. Each result identifies its edition and source type. These are separate from the ${status.documents} faculty files and ${status.supplemental_passages} original project notes.</p><details class="course-inventory"><summary>Inspect textbook resources</summary><div class="inventory-scroll"><table class="metric-table"><thead><tr><th>Source file</th><th>Type</th><th>Passages</th><th>SHA-256</th></tr></thead><tbody>${status.reference_inventory.map(item => `<tr><td>${escapeHTML(item.source)}</td><td>${escapeHTML(item.group)}</td><td>${item.chunks}</td><td><code title="${escapeHTML(item.sha256)}">${escapeHTML(item.sha256.slice(0,12))}…</code></td></tr>`).join('')}</tbody></table></div></details>`);
+    }
   } catch (error) { $('course-status').textContent = `Could not read local course index: ${error.message}`; }
 }
 
@@ -77,7 +80,7 @@ async function searchCourse() {
   $('course-context').innerHTML = '';
   $('course-results').innerHTML = '';
   try {
-    const data = await json('/api/course/ask', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({question, method:$('course-method').value})});
+    const data = await json('/api/course/ask', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({question, method:$('course-method').value, scope:$('course-scope').value})});
     if (!data.ready) { $('course-answer').innerHTML = '<p class="warning">Import a course ZIP first.</p>'; return; }
     if (data.explanation) {
       $('course-answer').innerHTML = `<section class="answer-panel"><div class="eyebrow">EXPLANATION FROM LOCAL MODEL</div><p>${escapeHTML(data.explanation.answer)}</p>${!data.explanation.has_valid_citation ? '<div class="warning">The model did not cite a source in its answer. Verify against the passages below.</div>' : ''}<small>${escapeHTML(data.explanation.model)} · source numbers refer to the passages below</small></section>`;
@@ -87,7 +90,7 @@ async function searchCourse() {
     renderVisual($('course-visual'), data.visual, data.matches);
     if (data.topic === 'process') $('course-context').innerHTML = '<button class="secondary small" data-go="explore">Try the fork/wait model →</button>';
     if (data.topic === 'scheduling') $('course-context').innerHTML = '<button class="secondary small" data-go="schedule">Try the CPU scheduling simulator →</button>';
-    $('course-results').innerHTML = renderSourceList(data.matches, `Retrieved passages · ${data.method.toUpperCase()}`);
+    $('course-results').innerHTML = renderSourceList(data.matches, `Retrieved passages · ${data.scope === 'course' ? 'Course notes' : data.scope === 'textbook' ? 'OS Concepts textbook resources' : 'Course + textbook'} · ${data.method.toUpperCase()}`);
   } catch (error) { $('course-answer').innerHTML = `<p class="warning">${escapeHTML(error.message)}</p>`; }
 }
 
@@ -176,16 +179,54 @@ async function reviewCode() {
   } catch (error) { $('result').innerHTML = `<p class="warning">${escapeHTML(error.message)}</p>`; }
 }
 
-function addProcess(id='',arrival=0,burst=2) {
+function addProcess(id='',arrival=0,burst=2,priority=1,queue=0) {
   const row = document.createElement('div');
   row.className = 'workload-row';
-  row.innerHTML = `<label>ID<input class="pid" maxlength="8" value="${escapeHTML(id)}"></label><label>Arrival<input class="arrival" type="number" min="0" max="20" value="${arrival}"></label><label>Burst<input class="burst" type="number" min="1" max="20" value="${burst}"></label><button class="remove-process" title="Remove process" aria-label="Remove process">×</button>`;
+  row.innerHTML = `<label>ID<input class="pid" maxlength="8" value="${escapeHTML(id)}"></label><label>Arrival<input class="arrival" type="number" min="0" max="20" value="${arrival}"></label><label>Burst<input class="burst" type="number" min="1" max="20" value="${burst}"></label><label>Priority<input class="priority" type="number" min="1" max="10" value="${priority}"></label><label>Queue<select class="queue"><option value="0" ${queue===0?'selected':''}>Foreground</option><option value="1" ${queue===1?'selected':''}>Background</option></select></label><button class="remove-process" title="Remove process" aria-label="Remove process">×</button>`;
   row.querySelector('button').onclick = () => row.remove();
   $('workload-rows').append(row);
+  updateScheduleFields();
+}
+
+// Show only the extra input used by the selected policy. Stored values remain
+// available when switching policies, so students can compare the same workload.
+function updateScheduleFields() {
+  const algorithm = $('schedule-algorithm').value;
+  document.querySelectorAll('.workload-row').forEach(row => {
+    row.querySelector('.priority').closest('label').hidden = algorithm !== 'PRIORITY';
+    row.querySelector('.queue').closest('label').hidden = algorithm !== 'MLQ';
+    row.classList.toggle('simple', !['PRIORITY','MLQ'].includes(algorithm));
+  });
+  $('schedule-quantum').closest('label').hidden = !['RR','MLQ','MLFQ'].includes(algorithm);
+}
+
+// Presets make each policy demonstrable without typing a workload during a review.
+// Loading one only fills the form: the Python scheduler still calculates every result.
+function loadScheduleExample() {
+  const examples = {
+    basic: {algorithm:'FCFS', quantum:2, rows:[['P1',0,5],['P2',1,3],['P3',2,1]]},
+    sjf: {algorithm:'SJF', quantum:2, rows:[['P1',0,5],['P2',0,3],['P3',0,1]]},
+    srtf: {algorithm:'SRTF', quantum:2, rows:[['P1',0,6],['P2',1,2],['P3',2,1]]},
+    priority: {algorithm:'PRIORITY', quantum:2, rows:[['P1',0,3,3],['P2',0,2,1],['P3',0,1,2]]},
+    'round-robin': {algorithm:'RR', quantum:2, rows:[['P1',0,4],['P2',1,3],['P3',2,2]]},
+    mlq: {algorithm:'MLQ', quantum:2, rows:[['P1',0,5,1,1],['P2',1,3,1,0],['P3',2,2,1,0]]},
+    mlfq: {algorithm:'MLFQ', quantum:2, rows:[['P1',0,5],['P2',1,3],['P3',3,1]]}
+  };
+  const example = examples[$('schedule-example').value];
+  $('workload-rows').replaceChildren();
+  example.rows.forEach(row => addProcess(...row));
+  $('schedule-algorithm').value = example.algorithm;
+  $('schedule-quantum').value = example.quantum;
+  updateScheduleFields();
+  state.scheduleResult = null;
+  $('schedule-state').innerHTML = '<p>Example loaded. Click Run workload to calculate the timeline.</p>';
+  $('schedule-step').textContent = 'NOT RUN';
+  $('gantt').replaceChildren();
+  $('schedule-metrics').replaceChildren();
 }
 
 async function runSchedule() {
-  const processes = [...document.querySelectorAll('.workload-row')].map(row => ({id:row.querySelector('.pid').value.trim(),arrival:Number(row.querySelector('.arrival').value),burst:Number(row.querySelector('.burst').value)}));
+  const processes = [...document.querySelectorAll('.workload-row')].map(row => ({id:row.querySelector('.pid').value.trim(),arrival:Number(row.querySelector('.arrival').value),burst:Number(row.querySelector('.burst').value),priority:Number(row.querySelector('.priority').value),queue:Number(row.querySelector('.queue').value)}));
   try {
     state.scheduleResult = await json('/api/schedule',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({processes,algorithm:$('schedule-algorithm').value,quantum:Number($('schedule-quantum').value)})});
     state.scheduleStep = 0;
@@ -261,6 +302,8 @@ $('compare').onclick = compareRuns;
 $('practice-switch').onclick = async () => { $('use-wait').checked = !$('use-wait').checked; await loadScenario(); };
 $('analyse').onclick = reviewCode;
 $('add-process').onclick = () => addProcess(`P${document.querySelectorAll('.workload-row').length+1}`,0,2);
+$('load-schedule-example').onclick = loadScheduleExample;
+$('schedule-algorithm').onchange = updateScheduleFields;
 $('run-schedule').onclick = runSchedule;
 $('schedule-back').onclick = () => { if (state.scheduleStep > 0) { state.scheduleStep--; renderSchedule(); } };
 $('schedule-next').onclick = () => { if (state.scheduleResult && state.scheduleStep < state.scheduleResult.frames.length-1) { state.scheduleStep++; renderSchedule(); } };

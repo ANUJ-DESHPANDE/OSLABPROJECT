@@ -8,6 +8,8 @@ data/university/
 data/processed/
 artifacts/
 tmp/
+REVIEW_TODAY/
+docs/~$*
 models/
 *.exe
 

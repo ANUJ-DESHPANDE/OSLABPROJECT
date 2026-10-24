@@ -18,17 +18,20 @@ from sklearn.metrics.pairwise import cosine_similarity
 from .knowledge import section_chunks, tokens
 
 INDEX_PATH = Path("data/private/processed/course_index.json")
+REFERENCE_INDEX_PATH = Path("data/private/processed/textbook_resources_index.json")
 SUPPORTED = {".pdf", ".pptx", ".docx"}
 MAX_ARCHIVE_SIZE = 200_000_000
 MAX_ENTRY_SIZE = 20_000_000
 
 
 def _clean(value):
+    """Normalize copy/paste quirks while preserving paragraph boundaries."""
     value = unicodedata.normalize("NFKC", value)
     return re.sub(r"[ \t]+", " ", value).strip()
 
 
 def _pages(name, data):
+    """Yield (location, text) so every answer can point to a page or slide."""
     extension = PurePosixPath(name).suffix.lower()
     if extension == ".pdf":
         import pymupdf
@@ -56,8 +59,12 @@ def _pages(name, data):
         yield "document", "\n\n".join(paragraphs)
 
 
-def import_course(archive_path, index_path=INDEX_PATH):
-    """Read a ZIP in memory; write extracted text only to a gitignored index."""
+def import_course(archive_path, index_path=INDEX_PATH, *, source_group=None, max_entry_size=MAX_ENTRY_SIZE):
+    """Turn a source ZIP into local passage records; never publish source files.
+
+    Reject unsafe/oversized entries, deduplicate identical files by SHA-256, then
+    store each readable chunk with its document and page/slide location.
+    """
     archive_path, index_path = Path(archive_path), Path(index_path)
     if not archive_path.is_file():
         raise ValueError(f"Course ZIP not found: {archive_path}")
@@ -73,7 +80,7 @@ def import_course(archive_path, index_path=INDEX_PATH):
                 skipped.append({"source": name, "reason": "unsafe archive path"})
                 continue
             suffix = path.suffix.lower()
-            if entry.file_size > MAX_ENTRY_SIZE:
+            if entry.file_size > max_entry_size:
                 skipped.append({"source": name, "reason": "file too large"})
                 continue
             if path.name.startswith("~$") or path.name.lower() == "problem statement llm.docx":
@@ -90,7 +97,14 @@ def import_course(archive_path, index_path=INDEX_PATH):
                     continue
                 seen_hashes.add(digest)
                 before = len(records)
-                group = "Lab" if "/Lab/" in f"/{name}/" else "Theory"
+                if source_group:
+                    group = source_group
+                elif name.startswith("Textbook 8th/"):
+                    group = "OS Concepts textbook (8th ed)"
+                elif name.startswith("Textbook companion/"):
+                    group = "OS Concepts companion slides (10th ed)"
+                else:
+                    group = "Lab" if "/Lab/" in f"/{name}/" else "Theory"
                 for location, raw_text in _pages(name, data):
                     content = _clean(raw_text)
                     for part, chunk in enumerate(section_chunks(content, max_words=210), 1):
@@ -101,7 +115,8 @@ def import_course(archive_path, index_path=INDEX_PATH):
                         records.append({"id": record_id, "source": name, "title": path.stem,
                                         "group": group, "format": suffix[1:], "location": location,
                                         "part": part, "text": chunk})
-                documents.append({"source": name, "format": suffix[1:], "chunks": len(records) - before,
+                documents.append({"source": name, "format": suffix[1:], "group": group,
+                                  "chunks": len(records) - before,
                                   "sha256": digest})
             except Exception as error:
                 skipped.append({"source": name, "reason": f"extraction failed: {type(error).__name__}"})
@@ -114,12 +129,17 @@ def import_course(archive_path, index_path=INDEX_PATH):
 
 
 class CourseSearch:
-    """Local hybrid index with exact source and page/slide citations."""
+    """Rank local passages while retaining their original source locations.
+
+    BM25 uses term counts; LSA compresses TF-IDF vectors. Both are fitted over
+    local passages when the app starts. No model training or internet call occurs.
+    """
 
     def __init__(self, payload):
         self.payload = payload
         self.records = payload["records"]
         self.course_count = payload.get("course_passages", len(self.records))
+        self.reference_count = payload.get("reference_passages", 0)
         self.docs = [tokens(record["text"] + " " + record["title"]) for record in self.records]
         self.counts = [Counter(doc) for doc in self.docs]
         self.df = Counter(term for doc in self.docs for term in set(doc))
@@ -131,15 +151,24 @@ class CourseSearch:
         self.dense = self.svd.fit_transform(matrix) if self.svd else matrix.toarray()
 
     @classmethod
-    def load(cls, index_path=INDEX_PATH, include_demo=False):
+    def load(cls, index_path=INDEX_PATH, include_demo=False, reference_index_path=None):
         path = Path(index_path)
         if not path.exists():
             return None
         payload = json.loads(path.read_text(encoding="utf-8"))
+        payload["course_passages"] = len(payload["records"])
+        if reference_index_path is not None and Path(reference_index_path).exists():
+            reference = json.loads(Path(reference_index_path).read_text(encoding="utf-8"))
+            payload["reference_passages"] = len(reference["records"])
+            payload["reference_documents"] = len(reference["documents"])
+            payload["reference_inventory"] = reference["documents"]
+            payload["reference_skipped"] = reference["skipped"]
+            payload["reference_formats"] = dict(Counter(item["format"] for item in reference["documents"]))
+            payload["reference_groups"] = dict(Counter(item["group"] for item in reference["documents"]))
+            payload["records"].extend(reference["records"])
         if include_demo:
             from .knowledge import load_demo
 
-            payload["course_passages"] = len(payload["records"])
             payload["records"].extend({
                 "id": item["id"], "source": "Project lab note: " + item["source"],
                 "title": item["experiment_name"], "group": "Project note",
@@ -149,21 +178,34 @@ class CourseSearch:
 
     def status(self):
         return {"ready": True, "documents": len(self.payload["documents"]),
-                "passages": self.course_count, "supplemental_passages": len(self.records) - self.course_count,
+                "passages": self.course_count,
+                "reference_documents": self.payload.get("reference_documents", 0),
+                "reference_passages": self.reference_count,
+                "reference_inventory": self.payload.get("reference_inventory", []),
+                "reference_skipped": self.payload.get("reference_skipped", []),
+                "reference_formats": self.payload.get("reference_formats", {}),
+                "reference_groups": self.payload.get("reference_groups", {}),
+                "supplemental_passages": len(self.records) - self.course_count - self.reference_count,
                 "skipped": len(self.payload["skipped"]),
                 "formats": dict(Counter(item["format"] for item in self.payload["documents"])),
                 "skip_reasons": dict(Counter(item["reason"] for item in self.payload["skipped"])),
                 "source_inventory": self.payload["documents"],
                 "skipped_entries": self.payload["skipped"]}
 
-    def search(self, question, limit=5, method="hybrid"):
+    def search(self, question, limit=5, method="hybrid", scope="course"):
+        """Return ranked source passages, optionally filtering course vs book.
+
+        A retrieval hit is evidence for an answer, not a generated answer itself.
+        """
         if method not in {"bm25", "lsa", "hybrid"}:
             raise ValueError("Search method must be bm25, lsa, or hybrid")
+        if scope not in {"course", "all", "textbook"}:
+            raise ValueError("Search scope must be course, all, or textbook")
         terms = set(tokens(question))
         if not terms:
             return []
         total = len(self.docs)
-        lexical = []
+        lexical = []  # BM25 rewards matching terms but corrects for passage length.
         exact_phrase = re.sub(r"[?!.\s]+$", "", question).lower()
         for index, (document, counts) in enumerate(zip(self.docs, self.counts)):
             score = sum(
@@ -176,6 +218,7 @@ class CourseSearch:
             lexical.append(score)
         query_vector = self.vectorizer.transform([question])
         dense_query = self.svd.transform(query_vector) if self.svd else query_vector.toarray()
+        # LSA compares compressed local text vectors; it is not neural embeddings.
         semantic = cosine_similarity(dense_query, self.dense)[0].tolist()
         lexical_order = sorted(range(total), key=lambda i: (-lexical[i], i))
         semantic_order = sorted(range(total), key=lambda i: (-semantic[i], i))
@@ -185,6 +228,7 @@ class CourseSearch:
         for index in range(total):
             if lexical[index] <= 0 and semantic[index] < 0.08:
                 continue
+            # Reciprocal rank fusion lets either method contribute a strong hit.
             score = {"bm25": lexical[index], "lsa": semantic[index],
                      "hybrid": 2 / (60 + lexical_rank[index]) + 1 / (60 + semantic_rank[index])}[method]
             if method == "hybrid" and len(exact_phrase.split()) >= 3 and exact_phrase in self.records[index]["text"].lower():
@@ -195,6 +239,9 @@ class CourseSearch:
         results, seen = [], set()
         for score, index in ranked:
             record = self.records[index]
+            is_textbook = record["group"].startswith("OS Concepts")
+            if scope == "course" and is_textbook or scope == "textbook" and not is_textbook:
+                continue
             key = (record["source"], record["location"])
             if key in seen:
                 continue

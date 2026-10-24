@@ -24,7 +24,7 @@ LSA means TF-IDF bigrams followed by truncated SVD; it is not a neural embedding
 
 ## Deterministic model tests
 
-Process tests check parent blocking and wakeup, child-first wait returning after child exit, both no-wait output orders, invalid transitions and prediction feedback. Scheduling tests use known FCFS and SJF timelines, a Round Robin case with arrivals, metric calculations and invalid input rejection. These are scenario tests, not a user learning study. Browser smoke testing was performed locally with headless Chrome across the main views and is not a required dependency of the Python test suite.
+Process tests check parent blocking and wakeup, child-first wait returning after child exit, both no-wait output orders, invalid transitions and prediction feedback. Scheduling tests cover known FCFS, SJF, SRTF, Priority, Round Robin, two-level Multilevel Queue and Multilevel Feedback Queue timelines, plus metrics and invalid input rejection. These are scenario tests, not a user learning study. A browser smoke check ran every built-in scheduling example in the local UI; it is not a required dependency of the Python test suite.
 
 ## Next evaluation improvements
 
