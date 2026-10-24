@@ -1,3 +1,5 @@
+"""Checks the deterministic process and CPU scheduling teaching models."""
+
 import unittest
 
 from oslab.concepts import load_concepts

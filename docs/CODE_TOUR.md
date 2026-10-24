@@ -10,7 +10,13 @@ Start with `web/index.html`: it contains the four visible screens. `web/app.js` 
 | `oslab/code_review.py` | Removes comments/string literals, finds selected OS calls and source line numbers, and reports cautious next checks. One pipe/EOF-loop case has a checked walkthrough. It never compiles or executes pasted code. |
 | `oslab/scheduling.py` | Simulates one CPU tick at a time. Ready queue, running process and remaining bursts create event snapshots. Seven named teaching policies choose or interrupt jobs; metrics come from arrival, first start and completion times. |
 | `oslab/behaviour.py` | Builds five small reviewed fork/wait cases and extracts simple source signals. These are demo regression cases, not observed student executions. |
+| `oslab/knowledge.py` | Parses the three public Markdown lab notes into 21 sections and implements their small benchmark retriever. The private faculty importer is in `course.py`. |
+| `oslab/diagnose.py` | Combines static fork/wait clues, similar demo cases and relevant demo notes for the older structured diagnosis endpoint. |
+| `oslab/process_model.py` | Runs a small, explicit fork/wait teaching scenario. Its frames and practice answer key come from the same state transitions; they are not kernel traces. |
+| `oslab/collect.py` | Optional Linux-only collector for fixed checked-in C examples. The Windows web app does not call it, and pasted student code never reaches it. |
+| `oslab/concepts.py` and `oslab/visuals.py` | Load concept links and select a topic hint for a question. The local model writes the actual source-linked visual steps. |
 | `oslab/studio.py` and `oslab/evaluate.py` | Expose the data audit and evaluate controlled public demo records. The 12-query retrieval scores do not measure private-course answer accuracy. |
+| `results/*.json` | Generated, machine-readable demo records and metrics. JSON cannot contain comments; open [`results/00_READ_ME.md`](../results/00_READ_ME.md) for each field's meaning. |
 
 ## Reproduce the diagram on paper
 

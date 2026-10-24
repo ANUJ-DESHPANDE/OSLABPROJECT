@@ -193,6 +193,7 @@ def serve(port):
 
 
 def main():
+    """Expose import, build, evaluate and serve commands from one entry point."""
     parser = argparse.ArgumentParser(description="OS Lab Companion local demo")
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("build")

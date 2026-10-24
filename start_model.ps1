@@ -1,3 +1,6 @@
+# Start the optional local explanation model. The web app works for search and
+# calculated scheduling without it, but generated explanations need this server.
+# All paths point inside this project; no hosted API key is used.
 $projectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $runtime = Join-Path $projectRoot 'data/private/llama-vulkan/llama-server.exe'
 
@@ -7,6 +10,7 @@ if (-not (Test-Path -LiteralPath $runtime)) {
 }
 
 $candidates = @(
+    # Exact size catches an incomplete download before the model is launched.
     @{ Name = 'qwen3-4b-ollama.gguf'; Size = 2497280480 }
 )
 $selected = $null

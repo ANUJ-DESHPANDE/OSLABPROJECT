@@ -1,3 +1,5 @@
+"""Recompute narrow, labelled checks for public demo data and retrieval."""
+
 import json
 import math
 from pathlib import Path
@@ -7,6 +9,7 @@ from .studio import audit_demo
 
 
 def processing_evaluation():
+    """Compare extracted Markdown headings with hand-labelled line positions."""
     labels = json.loads(Path("data/benchmarks/processing.json").read_text(encoding="utf-8"))
     audit = audit_demo()
     sources = {item["source"]: item for item in audit["knowledge"]["sources"]}
@@ -29,6 +32,7 @@ def processing_evaluation():
 
 
 def retrieval_evaluation():
+    """Measure where each labelled relevant demo section appears in search."""
     records = load_demo()
     retriever = Retriever(records)
     queries = json.loads(Path("data/benchmarks/retrieval.json").read_text(encoding="utf-8"))
@@ -48,6 +52,7 @@ def retrieval_evaluation():
 
 
 def diagnostic_evaluation():
+    """Match each static failure variant against the other reviewed examples."""
     cases = build_cases()
     rows = []
     for case in cases:
@@ -63,6 +68,7 @@ def diagnostic_evaluation():
 
 
 def run():
+    """Write all three metric files under results/ for inspection."""
     processing = processing_evaluation()
     retrieval = retrieval_evaluation()
     diagnostic = diagnostic_evaluation()

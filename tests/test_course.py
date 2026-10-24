@@ -1,3 +1,5 @@
+"""Checks for safe course ZIP import and source-linked retrieval."""
+
 import io
 import tempfile
 import unittest

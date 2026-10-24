@@ -1,8 +1,11 @@
+"""Legacy structured diagnosis for the small public fork/wait demo cases."""
+
 from .behaviour import static_features, match_cases
 from .concepts import concept_for_failure
 
 
 def diagnose(source, output, experiment, retriever, cases, question=""):
+    """Combine source clues, similar demo cases and notes without running code."""
     features = static_features(source or "")
     output = output or ""
     signals = []

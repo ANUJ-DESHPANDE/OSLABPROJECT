@@ -1,3 +1,5 @@
+"""Regression checks for the original public demo records and diagnosis."""
+
 import tempfile
 import unittest
 from pathlib import Path

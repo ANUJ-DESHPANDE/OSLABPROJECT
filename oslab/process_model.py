@@ -30,6 +30,10 @@ CODE = [
 
 
 def event_plan(use_wait=True, schedule="parent_first"):
+    """Choose one valid teaching order for the parent and child events.
+
+    This order is selected by the learner; it is not an observed kernel trace.
+    """
     if schedule not in {"parent_first", "child_first"}:
         raise ValueError("Unknown schedule")
     if use_wait:
@@ -42,11 +46,13 @@ def event_plan(use_wait=True, schedule="parent_first"):
 
 
 def initial_state():
+    """Start before fork: the parent runs and no child exists yet."""
     return {"parent": "RUNNING", "child": "NOT_CREATED", "child_reaped": False,
             "output": [], "active": "parent"}
 
 
 def apply_event(state, event):
+    """Apply one model event to a copied state, checking impossible moves."""
     state = deepcopy(state)
     if event == "FORK":
         assert state["child"] == "NOT_CREATED"
@@ -88,6 +94,7 @@ def apply_event(state, event):
 
 
 def scenario(use_wait=True, schedule="parent_first"):
+    """Build replayable frames for the browser's process explorer."""
     state = initial_state()
     frames = [{"step": 0, "event": "START", "title": "Parent begins", "concept_id": "process",
                "code_line": None, "state": deepcopy(state)}]
@@ -102,6 +109,7 @@ def scenario(use_wait=True, schedule="parent_first"):
 
 
 def grade_prediction(use_wait, schedule, step, answer):
+    """Check a practice answer against the same event plan shown visually."""
     frames = scenario(use_wait, schedule)["frames"]
     if not isinstance(step, int) or step < 0 or step >= len(frames) - 1:
         raise ValueError("Invalid step")

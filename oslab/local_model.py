@@ -1,4 +1,8 @@
-"""Small, explicitly local explanation layer using Ollama's localhost API."""
+"""Explain retrieved excerpts with a local Ollama or llama.cpp model server.
+
+The model is not trained on the course files. It receives selected source
+passages at question time and must return structured, source-linked text.
+"""
 
 import json
 import os
@@ -26,6 +30,7 @@ RESPONSE_SCHEMA = {
 
 
 def _schema(source_count, code_line_count):
+    """Restrict citation IDs and code lines to values actually provided."""
     schema = json.loads(json.dumps(RESPONSE_SCHEMA))
     point = schema["properties"]["answer_points"]["items"]["properties"]
     step = schema["properties"]["visual_steps"]["items"]["properties"]
@@ -36,6 +41,7 @@ def _schema(source_count, code_line_count):
 
 
 def _request(host, path, payload=None, timeout=5):
+    """Make a JSON request to a model server bound to this computer."""
     body = json.dumps(payload).encode("utf-8") if payload is not None else None
     request = Request(host + path, data=body,
                       headers={"Content-Type": "application/json"} if body else {})
@@ -44,6 +50,7 @@ def _request(host, path, payload=None, timeout=5):
 
 
 def status():
+    """Report which supported local model server, if any, is responding."""
     try:
         models = _request(OLLAMA_HOST, "/api/tags", timeout=2).get("models", [])
         names = {item.get("name") for item in models}
@@ -65,9 +72,16 @@ def status():
 
 
 def explain(question, sources, code=None, observations=None, inspection=None, topic_hint=None):
+    """Generate a short answer from source snippets and validate its structure.
+
+    This checks citation numbers and visual shape, not the truth of every
+    sentence. The original passages remain visible to the student.
+    """
     if not sources:
         return {"answer": "I could not find enough course material for this question.",
                 "citations_used": [], "model": None, "has_valid_citation": False}
+    # Limit each excerpt before sending it to the model; the full source remains
+    # in the local index and can still be shown in the browser.
     snippets = "\n\n".join(
         f"[{index}] {item['title']} ({item['location']}; {item['source']})\n{item['text'][:700]}"
         for index, item in enumerate(sources, 1)

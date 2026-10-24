@@ -14,10 +14,12 @@ DEMO_SECTIONS = {"Aim", "Theory", "Procedure", "Program", "Expected Output", "Tr
 
 
 def digest(text):
+    """Make a stable fingerprint so changed demo sources are detectable."""
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
 def knowledge_sources():
+    """Expose each Markdown source and the heading lines used to parse it."""
     output = []
     for path in sorted(Path("data/demo").glob("*.md")):
         raw = path.read_text(encoding="utf-8")
@@ -38,6 +40,11 @@ def knowledge_sources():
 
 
 def audit_demo():
+    """Build the inspectable public dataset audit for the data screen.
+
+    Expected events, static source inferences and observed runtime traces are
+    separate fields; this snapshot contains no observed Linux traces.
+    """
     sources = knowledge_sources()
     records = ingest(Path("data/demo").glob("*.md"))
     cases = build_cases()
@@ -82,6 +89,7 @@ def audit_demo():
 
 
 def save_audit(path="results/dataset_audit.json"):
+    """Regenerate the audit JSON shown by the local web app."""
     audit = audit_demo()
     save_json(path, audit)
     return audit

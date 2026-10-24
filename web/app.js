@@ -1,8 +1,11 @@
+// Browser layer only: collect inputs, call the local Python API, and render
+// results. Retrieval, code checks, and scheduling calculations live in oslab/.
 const $ = id => document.getElementById(id);
 const escapeHTML = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const state = {concepts:[], records:[], studio:null, metrics:null, courseStatus:null, scenario:null, step:0, concept:'process', studioTab:'knowledge', studioSource:0, studioCase:0, scheduleResult:null, scheduleStep:0};
 
 async function json(url, options) {
+  // All screens use the same small helper for localhost JSON endpoints.
   const response = await fetch(url, options);
   const data = await response.json();
   if (!response.ok) throw Error(data.error || `HTTP ${response.status}`);
@@ -73,6 +76,8 @@ function renderVisual(container, visual, sources, code='') {
 }
 
 async function searchCourse() {
+  // Ask OS sends the question and search settings. Python returns source
+  // passages first; a local model may add an explanation and visual steps.
   const question = $('course-question').value.trim();
   if (!question) { $('course-question').focus(); return; }
   $('course-answer').innerHTML = '<div class="answer-panel"><p>Finding passages and asking the local model to explain them…</p></div>';
@@ -160,6 +165,8 @@ async function answerPractice(answer) {
 }
 
 async function reviewCode() {
+  // This sends pasted text for static inspection. No browser or server path
+  // compiles or executes it; user-supplied output remains labelled as such.
   const code = $('code').value.trim();
   if (!code) { $('code').focus(); return; }
   $('result').innerHTML = '<p>Inspecting source clues, retrieving course material, and asking the local model…</p>';
@@ -235,6 +242,7 @@ async function runSchedule() {
 }
 
 function renderSchedule() {
+  // Replay a Python-produced frame; JavaScript does not choose the next job.
   const result = state.scheduleResult;
   if (!result) return;
   const frame = result.frames[state.scheduleStep], snapshot = frame.state;
@@ -247,6 +255,7 @@ function renderSchedule() {
 }
 
 function renderStudio() {
+  // Turn the data audit into readable inventory and controlled metric views.
   const audit = state.studio;
   if (!audit) return;
   const kh = audit.knowledge.health, bh = audit.behaviour.health;

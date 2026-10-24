@@ -69,6 +69,7 @@ def build_cases():
 
 
 def save_cases(path="data/processed/behaviour.json"):
+    """Write the reviewed source-only examples to generated local JSON."""
     cases = build_cases()
     save_json(path, cases)
     return cases

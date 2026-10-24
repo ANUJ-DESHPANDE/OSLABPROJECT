@@ -61,7 +61,7 @@ The private course archive has not been given a labeled relevance benchmark. The
 
 Run tests with `python -m unittest discover -s tests -q`. Technical details are in [architecture](docs/architecture.md), [dataset](docs/dataset.md), and [evaluation](docs/evaluation.md).
 
-For a reviewer opening random files, [the code tour](docs/CODE_TOUR.md) maps each visible feature to its implementation and states what its output means.
+For a reviewer opening random files, [the code tour](docs/CODE_TOUR.md) maps each visible feature to its implementation. The [results guide](results/00_READ_ME.md) explains the generated JSON records, which cannot contain code comments.
 
 ## License
 

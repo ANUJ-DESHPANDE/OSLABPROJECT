@@ -10,6 +10,11 @@ from .knowledge import save_json
 
 
 def collect_trusted():
+    """Compile only checked-in examples on Linux; never accept pasted web code.
+
+    This optional collector is not part of the Windows demo. It is separate
+    from the HTTP server and requires an explicit command in a Linux setup.
+    """
     if platform.system() != "Linux" or not shutil.which("gcc"):
         raise RuntimeError("Trusted execution collection requires Linux and gcc; no code was run")
     cases = build_cases()

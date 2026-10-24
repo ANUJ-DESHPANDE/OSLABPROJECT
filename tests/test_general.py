@@ -1,3 +1,5 @@
+"""Checks cautious code review and local-model response validation."""
+
 import unittest
 from unittest.mock import patch
 import json

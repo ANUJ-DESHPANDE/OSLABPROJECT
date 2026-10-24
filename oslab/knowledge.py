@@ -1,3 +1,9 @@
+"""Build and search the small public Markdown lab-note dataset.
+
+The professor's private ZIP uses the separate importer in course.py. This
+module provides controlled examples and the labelled retrieval benchmark.
+"""
+
 import hashlib
 import json
 import math
@@ -14,6 +20,7 @@ TOKEN = re.compile(r"[a-z][a-z0-9_]*", re.I)
 
 
 def tokens(text):
+    """Lowercase text and keep simple word-like terms for keyword ranking."""
     return TOKEN.findall(text.lower())
 
 
@@ -88,6 +95,7 @@ def parse_markdown(path):
 
 
 def ingest(paths):
+    """Parse each demo note and remove identical sections within an experiment."""
     records, seen = [], set()
     for path in sorted(map(Path, paths)):
         for record in parse_markdown(path):
@@ -99,7 +107,10 @@ def ingest(paths):
 
 
 class Retriever:
+    """Rank demo sections by BM25, LSA or a fusion of the two rankings."""
+
     def __init__(self, records):
+        """Fit local text statistics once so repeated queries are fast."""
         self.records = records
         self.docs = [tokens(r["text"] + " " + r["section_type"] + " " + r["topic"]) for r in records]
         self.df = Counter(t for doc in self.docs for t in set(doc))
@@ -113,6 +124,7 @@ class Retriever:
         self.dense = self.svd.fit_transform(matrix) if self.svd else matrix.toarray()
 
     def search(self, query, experiment=None, mode="Debug", method="hybrid", k=5):
+        """Return top labelled demo sections; experiment/mode narrow the task."""
         qtokens = tokens(query)
         n = len(self.docs)
         lexical = []
@@ -148,10 +160,12 @@ class Retriever:
 
 
 def save_json(path, data):
+    """Write reproducible, readable JSON used by the app and tests."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
 
 def load_demo():
+    """Load original public Markdown notes from data/demo/."""
     return ingest(Path("data/demo").glob("*.md"))
