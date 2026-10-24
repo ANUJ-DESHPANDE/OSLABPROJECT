@@ -1,3 +1,5 @@
+/* Fixed fork/wait teaching fixture. The app reads this source for static
+ * comparison; the browser never compiles or runs pasted student code. */
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/wait.h>

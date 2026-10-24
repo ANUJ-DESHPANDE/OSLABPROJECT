@@ -33,6 +33,7 @@ def build():
 
 def serve(port):
     """Load local datasets once, then serve UI files and narrow JSON endpoints."""
+    # Browser assets are read once at startup; restarting picks up UI edits.
     records, cases = build()
     retriever = Retriever(records)
     page = Path("web/index.html").read_bytes()
@@ -45,7 +46,9 @@ def serve(port):
     course = CourseSearch.load(include_demo=True, reference_index_path=REFERENCE_INDEX_PATH)
 
     class Handler(BaseHTTPRequestHandler):
+        """Route requests; no route runs pasted student code."""
         def do_GET(self):
+            # GET returns the website, data audits and status of local services.
             parsed = urlparse(self.path)
             route = parsed.path
             if route == "/":
@@ -92,6 +95,7 @@ def serve(port):
             self.wfile.write(body)
 
         def do_POST(self):
+            # POST validates bounded JSON before delegating to a specific tool.
             if self.path not in {"/api/analyse", "/api/practice", "/api/schedule", "/api/course/search", "/api/course/ask", "/api/code/review"}:
                 self.send_error(404)
                 return

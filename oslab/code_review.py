@@ -14,6 +14,8 @@ def inspect_code(code):
                    lambda match: "\n" * match.group().count("\n"), code, flags=re.S)
     clean = re.sub(r'"(?:\\.|[^"\\])*"', '""', clean)
     positions = {name: [clean.count("\n", 0, match.start()) + 1 for match in
+                         # Count newlines before each call to report its pasted
+                         # source line; this is text matching, not C parsing.
                          re.finditer(r"\b" + re.escape(name) + r"\s*\(", clean)] for name in
              ("fork", "wait", "waitpid", "execve", "execl", "execlp", "execv", "execvp",
               "pipe", "read", "write", "close", "pthread_create", "pthread_join",
@@ -34,6 +36,8 @@ def inspect_code(code):
         add("processes", "fork() appears without wait()/waitpid().",
             "If the parent must finish after the child, check where it waits. Asynchronous code may intentionally omit wait.", ("fork",))
     if calls["pipe"] and not calls["close"]:
+        # EOF needs every writer end closed. This warning says the pasted text
+        # has no close() call; it cannot prove what a real run did.
         add("pipes", "pipe() appears without any close() call.",
             "Check whether each process closes unused pipe ends; an open write end can keep a reader waiting for EOF.", ("pipe",))
         if calls["read"] and re.search(r"\bwhile\s*\([^;{}]*\bread\s*\(", clean, flags=re.S):
@@ -44,6 +48,7 @@ def inspect_code(code):
         add("threads", "pthread_create() appears without pthread_join() or pthread_detach().",
             "Check how thread completion and resources are handled before the process exits.", ("pthread_create",))
     if calls["pthread_mutex_lock"] > calls["pthread_mutex_unlock"]:
+        # Count imbalance is a lead for manual path inspection, not a lock leak.
         add("locks", "The text contains more mutex lock calls than unlock calls.",
             "Inspect each control-flow path. A text count alone cannot prove a lock leak.", ("pthread_mutex_lock",))
     if calls["sem_wait"] and not calls["sem_post"]:
@@ -96,6 +101,8 @@ def pipe_eof_walkthrough(code, inspection, sources):
     if not any(item["observation"].startswith("A read() loop") for item in inspection["findings"]):
         return None
     source_id = next((index for index, source in enumerate(sources, 1)
+                      # Require an actually retrieved pipe/EOF passage before
+                      # presenting this checked explanation as source-grounded.
                       if "pipe" in source["text"].lower() and "eof" in source["text"].lower()
                       and "write" in source["text"].lower()), None)
     if source_id is None:

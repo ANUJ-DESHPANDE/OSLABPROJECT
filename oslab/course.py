@@ -20,6 +20,7 @@ from .knowledge import section_chunks, tokens
 INDEX_PATH = Path("data/private/processed/course_index.json")
 REFERENCE_INDEX_PATH = Path("data/private/processed/textbook_resources_index.json")
 SUPPORTED = {".pdf", ".pptx", ".docx"}
+# Limits keep a malformed or unexpectedly huge ZIP from exhausting the laptop.
 MAX_ARCHIVE_SIZE = 200_000_000
 MAX_ENTRY_SIZE = 20_000_000
 
@@ -34,12 +35,14 @@ def _pages(name, data):
     """Yield (location, text) so every answer can point to a page or slide."""
     extension = PurePosixPath(name).suffix.lower()
     if extension == ".pdf":
+        # PDF text is processed page by page, preserving the page citation.
         import pymupdf
 
         with pymupdf.open(stream=data, filetype="pdf") as document:
             for number, page in enumerate(document, 1):
                 yield f"page {number}", page.get_text("text")
     elif extension == ".pptx":
+        # PowerPoint text comes from text-bearing shapes on each slide.
         from pptx import Presentation
 
         presentation = Presentation(io.BytesIO(data))
@@ -48,6 +51,7 @@ def _pages(name, data):
                 shape.text for shape in slide.shapes if shape.has_text_frame
             )
     elif extension == ".docx":
+        # DOCX is a ZIP of XML parts; paragraph text is enough for this index.
         with zipfile.ZipFile(io.BytesIO(data)) as document:
             root = ElementTree.fromstring(document.read("word/document.xml"))
         namespace = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
@@ -76,6 +80,7 @@ def import_course(archive_path, index_path=INDEX_PATH, *, source_group=None, max
         for entry in entries:
             name = entry.filename.replace("\\", "/")
             path = PurePosixPath(name)
+            # Reject path traversal before reading anything from this entry.
             if path.is_absolute() or ".." in path.parts or ":" in name:
                 skipped.append({"source": name, "reason": "unsafe archive path"})
                 continue
@@ -92,6 +97,8 @@ def import_course(archive_path, index_path=INDEX_PATH, *, source_group=None, max
             try:
                 data = archive.read(entry)
                 digest = hashlib.sha256(data).hexdigest()
+                # Identical files inside the archive count once; the digest
+                # later appears in the per-file data audit.
                 if digest in seen_hashes:
                     skipped.append({"source": name, "reason": "duplicate file"})
                     continue
@@ -107,6 +114,8 @@ def import_course(archive_path, index_path=INDEX_PATH, *, source_group=None, max
                     group = "Lab" if "/Lab/" in f"/{name}/" else "Theory"
                 for location, raw_text in _pages(name, data):
                     content = _clean(raw_text)
+                    # One page/slide can produce several short passages. Search
+                    # cards keep the shared location so students can verify it.
                     for part, chunk in enumerate(section_chunks(content, max_words=210), 1):
                         chunk = _clean(chunk)
                         if len(chunk) < 60:
@@ -141,6 +150,8 @@ class CourseSearch:
         self.course_count = payload.get("course_passages", len(self.records))
         self.reference_count = payload.get("reference_passages", 0)
         self.docs = [tokens(record["text"] + " " + record["title"]) for record in self.records]
+        # Counts support BM25; TF-IDF plus SVD supports LSA. Fit once at app
+        # startup, then reuse the representations for every question.
         self.counts = [Counter(doc) for doc in self.docs]
         self.df = Counter(term for doc in self.docs for term in set(doc))
         self.avg_length = sum(map(len, self.docs)) / max(1, len(self.docs))
@@ -152,12 +163,15 @@ class CourseSearch:
 
     @classmethod
     def load(cls, index_path=INDEX_PATH, include_demo=False, reference_index_path=None):
+        """Merge private course, optional textbook, and labelled demo records."""
         path = Path(index_path)
         if not path.exists():
             return None
         payload = json.loads(path.read_text(encoding="utf-8"))
         payload["course_passages"] = len(payload["records"])
         if reference_index_path is not None and Path(reference_index_path).exists():
+            # The reference collection stays separate on disk and can be
+            # filtered out when the student chooses course notes only.
             reference = json.loads(Path(reference_index_path).read_text(encoding="utf-8"))
             payload["reference_passages"] = len(reference["records"])
             payload["reference_documents"] = len(reference["documents"])
@@ -222,10 +236,13 @@ class CourseSearch:
         semantic = cosine_similarity(dense_query, self.dense)[0].tolist()
         lexical_order = sorted(range(total), key=lambda i: (-lexical[i], i))
         semantic_order = sorted(range(total), key=lambda i: (-semantic[i], i))
+        # Keep rank maps for reciprocal-rank fusion below. This avoids directly
+        # adding a BM25 number to a cosine-similarity number.
         lexical_rank = {index: rank for rank, index in enumerate(lexical_order, 1)}
         semantic_rank = {index: rank for rank, index in enumerate(semantic_order, 1)}
         ranked = []
         for index in range(total):
+            # Discard passages with neither useful keyword nor LSA evidence.
             if lexical[index] <= 0 and semantic[index] < 0.08:
                 continue
             # Reciprocal rank fusion lets either method contribute a strong hit.
@@ -239,6 +256,8 @@ class CourseSearch:
         results, seen = [], set()
         for score, index in ranked:
             record = self.records[index]
+            # Scope changes which results are shown. It does not rewrite the
+            # source text or claim a textbook edition that was not imported.
             is_textbook = record["group"].startswith("OS Concepts")
             if scope == "course" and is_textbook or scope == "textbook" and not is_textbook:
                 continue

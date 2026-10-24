@@ -26,6 +26,7 @@ def knowledge_sources():
         records = parse_markdown(path)
         sections = []
         for number, line in enumerate(raw.splitlines(), 1):
+            # These exact line numbers make the extraction auditable in VS Code.
             match = re.match(r"## (.+)", line)
             if match:
                 sections.append({"name": match.group(1), "line": number,
@@ -54,6 +55,8 @@ def audit_demo():
                         for item in concepts for record_id in item["source_records"] if record_id not in record_ids]
     hashes = Counter((r["experiment_id"], r["section_type"], r["content_hash"]) for r in records)
     duplicate_count = sum(count - 1 for count in hashes.values() if count > 1)
+    # The case diff shows precisely how each faulty example changed from the
+    # baseline; it is source comparison, not an observed execution trace.
     baseline = next(case for case in cases if case["baseline"])
     behaviour = []
     for case in cases:
@@ -72,6 +75,8 @@ def audit_demo():
                      "\n".join(case["source_sha256"] for case in behaviour) + "\n" +
                      json.dumps(concepts, sort_keys=True))[:16]
     return {"schema_version": 1, "dataset_version": version,
+            # Keep original text, derived records and health warnings together
+            # so a reviewer can inspect how the demo dataset was processed.
             "pipeline": ["raw Markdown", "heading detection", "section extraction", "logical records",
                          "metadata and content hash", "deduplication", "BM25/LSA representations"],
             "knowledge": {"sources": sources, "records": records,

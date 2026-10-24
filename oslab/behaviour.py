@@ -12,6 +12,7 @@ EVENTS = {"clone": "PROCESS_CREATE", "fork": "PROCESS_CREATE", "vfork": "PROCESS
 
 def normalize_trace(raw):
     """Extract syscall classes; discard PID, fd, addresses, timestamps and return noise."""
+    # This function only processes a trace if one was actually collected.
     result = []
     for line in raw.splitlines():
         match = re.search(r"\b([a-z][a-z0-9_]*)\(", line)
@@ -24,6 +25,8 @@ def normalize_trace(raw):
 
 def static_features(source):
     """Extract simple fork/wait signals from known examples, without executing C."""
+    # Strip comments/strings so words inside documentation do not look like
+    # actual calls. This still is not a complete C parser.
     clean = re.sub(r"/\*.*?\*/|//[^\n]*", "", source, flags=re.S)
     clean = re.sub(r'"(?:\\.|[^"\\])*"', '""', clean)
     wait = bool(re.search(r"\bwait(?:pid)?\s*\(", clean))
@@ -55,6 +58,7 @@ def build_cases():
         source = path.read_text(encoding="utf-8")
         features = static_features(source)
         result.append({"id": name, "experiment_id": "FW01", "failure_label": label,
+                       "record_note": "Reviewed static C example; no student program or Linux trace was run",
                        "baseline": baseline, "mutation_description": mutation,
                        "source_path": str(path).replace("\\", "/"), "source_code": source,
                        "compile_result": "not_run_posix_environment_unavailable",
@@ -77,6 +81,8 @@ def save_cases(path="data/processed/behaviour.json"):
 
 def match_cases(features, cases, exclude_id=None, top_k=3):
     """Rank similar reviewed cases by four static signals, not bug certainty."""
+    # Leave-one-out evaluation excludes the very case being queried; otherwise
+    # every case would trivially match itself.
     keys = ("fork_present", "wait_present", "wait_in_child_branch", "parent_wait_present")
     scored = []
     for case in cases:

@@ -14,6 +14,7 @@ MECHANISMS = {
 }
 
 PATTERNS = [
+    # Ordered rules choose a topic hint; they do not generate the explanation.
     ("page_fault", r"page fault|paging|virtual memory|tlb|address translation"),
     ("deadlock", r"deadlock|dining philosopher"),
     ("synchronization", r"semaphore|mutex|lock|critical section|race condition|thread synchron"),
@@ -27,6 +28,7 @@ PATTERNS = [
 
 def choose_visual(question, sources=(), topics=()):
     """Return a topic hint, never a generic visual masquerading as an answer."""
+    # Prefer the student's wording, then try the strongest source titles.
     text = question.lower() or " ".join(topics).lower()
     if not text.strip():
         text = " ".join(topics).lower()

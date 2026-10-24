@@ -16,6 +16,8 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
 SECTIONS = {"Aim", "Theory", "Setup", "Procedure", "Algorithm", "Program", "Expected Output", "Troubleshooting", "Viva"}
+# The demo parser accepts only these heading names. A new heading is rejected
+# instead of silently becoming an unlabeled training/evaluation record.
 TOKEN = re.compile(r"[a-z][a-z0-9_]*", re.I)
 
 
@@ -26,6 +28,8 @@ def tokens(text):
 
 def section_chunks(body, max_words=350):
     """Keep paragraph and fenced-code blocks intact where possible."""
+    # First collect logical blocks. Blank lines end prose blocks, but a blank
+    # line inside fenced code should remain part of that code example.
     blocks, block, fenced = [], [], False
     for line in body.splitlines():
         if not line.strip() and not fenced:
@@ -40,6 +44,8 @@ def section_chunks(body, max_words=350):
         blocks.append("\n".join(block))
     chunks, current = [], []
     for block in blocks:
+        # Combine small blocks until a passage would exceed the word limit.
+        # Oversized prose is split; fenced code is kept intact for readability.
         count = len(block.split())
         if current and sum(len(item.split()) for item in current) + count > max_words:
             chunks.append("\n\n".join(current))
@@ -61,6 +67,8 @@ def parse_markdown(path):
     records = []
 
     def flush():
+        # Finish the previous section before moving to the next heading.
+        # Every output record keeps its experiment, section and source name.
         body = "\n".join(lines).strip()
         if not section or not body:
             return
@@ -75,6 +83,7 @@ def parse_markdown(path):
                             "content_hash": digest, "text": chunk})
 
     for line in source.read_text(encoding="utf-8").splitlines():
+        # One # heading starts an experiment; ## starts a named section.
         if line.startswith("# "):
             flush()
             match = re.match(r"# Experiment ([A-Z0-9]+): (.+)", line)
@@ -100,6 +109,8 @@ def ingest(paths):
     for path in sorted(map(Path, paths)):
         for record in parse_markdown(path):
             key = (record["experiment_id"], record["section_type"], record["content_hash"])
+            # An exact duplicate in the same experiment/section adds no new
+            # teaching evidence, so keep just one copy.
             if key not in seen:
                 seen.add(key)
                 records.append(record)
@@ -112,10 +123,13 @@ class Retriever:
     def __init__(self, records):
         """Fit local text statistics once so repeated queries are fast."""
         self.records = records
+        # Token counts and document frequency support the keyword BM25 score.
         self.docs = [tokens(r["text"] + " " + r["section_type"] + " " + r["topic"]) for r in records]
         self.df = Counter(t for doc in self.docs for t in set(doc))
         self.avgdl = sum(map(len, self.docs)) / max(1, len(self.docs))
         texts = [r["text"] + " " + r["section_type"] + " " + r["topic"] for r in records]
+        # TF-IDF turns passages into word-weight vectors; SVD compresses those
+        # vectors for LSA similarity. This is fitted locally, not downloaded.
         self.vectorizer = TfidfVectorizer(ngram_range=(1, 2), stop_words="english", sublinear_tf=True)
         matrix = self.vectorizer.fit_transform(texts)
         # LSA gives a compact dense latent-space representation, with no model download.
@@ -128,6 +142,8 @@ class Retriever:
         qtokens = tokens(query)
         n = len(self.docs)
         lexical = []
+        # BM25 rewards matching terms but discounts terms found everywhere and
+        # corrects for long passages, which naturally contain more words.
         for doc in self.docs:
             count = Counter(doc)
             score = sum(math.log(1 + (n - self.df[t] + .5) / (self.df[t] + .5)) *
@@ -136,7 +152,9 @@ class Retriever:
             lexical.append(score)
         qvec = self.vectorizer.transform([query])
         dense_q = self.svd.transform(qvec) if self.svd else qvec.toarray()
+        # Cosine similarity compares the question with each compressed passage.
         semantic = cosine_similarity(dense_q, self.dense)[0].tolist()
+        # Public benchmark questions can restrict search to one lab experiment.
         eligible = [i for i, r in enumerate(self.records) if not experiment or r["experiment_id"] == experiment]
         if not eligible:
             return []
@@ -150,6 +168,8 @@ class Retriever:
                      "Learn": {"Aim", "Theory"}}.get(mode, set())
         output = []
         for i in eligible:
+            # Hybrid uses rank positions rather than raw BM25/LSA scores, which
+            # are on different numeric scales. The tiny mode bonus breaks ties.
             fused = 1 / (60 + lr[i]) + 1 / (60 + sr[i])
             bonus = .001 if self.records[i]["section_type"] in preferred else 0
             score = {"bm25": lexical[i], "dense": semantic[i], "hybrid": fused + bonus}[method]

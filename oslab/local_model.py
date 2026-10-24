@@ -51,6 +51,8 @@ def _request(host, path, payload=None, timeout=5):
 
 def status():
     """Report which supported local model server, if any, is responding."""
+    # Prefer Ollama if the configured model is present; otherwise try the
+    # bundled llama.cpp-compatible server. Both are localhost-only.
     try:
         models = _request(OLLAMA_HOST, "/api/tags", timeout=2).get("models", [])
         names = {item.get("name") for item in models}
@@ -78,6 +80,7 @@ def explain(question, sources, code=None, observations=None, inspection=None, to
     sentence. The original passages remain visible to the student.
     """
     if not sources:
+        # No evidence means no grounded model explanation can be requested.
         return {"answer": "I could not find enough course material for this question.",
                 "citations_used": [], "model": None, "has_valid_citation": False}
     # Limit each excerpt before sending it to the model; the full source remains
@@ -153,9 +156,12 @@ def explain(question, sources, code=None, observations=None, inspection=None, to
     except (TypeError, ValueError) as error:
         raise RuntimeError("Local model returned invalid structured data") from error
     if parsed.get("coverage") != "supported":
+        # Ask the model to abstain when the selected excerpts do not cover the
+        # exact question, even if it may know a generic answer.
         raise RuntimeError("The retrieved course passages do not cover enough of this question for a reliable explanation.")
     points = []
     for point in parsed.get("answer_points", [])[:3]:
+        # Check that each citation points to one of the excerpts actually sent.
         if not isinstance(point, dict):
             continue
         claim, source_id = point.get("claim"), point.get("source_id")
@@ -173,6 +179,7 @@ def explain(question, sources, code=None, observations=None, inspection=None, to
     max_line = len(shown_code.splitlines()) if shown_code else 0
     steps = []
     for step in parsed.get("visual_steps", [])[:6]:
+        # Visual steps are explanatory text tied to sources, not runtime frames.
         if not isinstance(step, dict):
             continue
         source_id, line = step.get("source_id"), step.get("code_line")
@@ -186,6 +193,7 @@ def explain(question, sources, code=None, observations=None, inspection=None, to
     if len(steps) < 3 or len(labels) < 3:
         raise RuntimeError("Local model did not produce supported visual steps. Check the passages below instead.")
     if shown_code and len({step["code_line"] for step in steps if step["code_line"]}) < 2:
+        # A code visual must meaningfully refer back to multiple pasted lines.
         raise RuntimeError("Local model did not connect the visual to enough code lines. Check the passages below instead.")
     return {"answer": answer, "citations_used": cited, "model": provider.get("label", provider["model"]),
             "has_valid_citation": bool(cited), "visual": {"title": str(parsed.get("visual_title", ""))[:100],

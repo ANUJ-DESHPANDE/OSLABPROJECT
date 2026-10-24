@@ -6,6 +6,7 @@ from .concepts import concept_for_failure
 
 def diagnose(source, output, experiment, retriever, cases, question=""):
     """Combine source clues, similar demo cases and notes without running code."""
+    # Evidence labels below separate source inference from user-supplied output.
     features = static_features(source or "")
     output = output or ""
     signals = []
@@ -21,6 +22,7 @@ def diagnose(source, output, experiment, retriever, cases, question=""):
         signals.append("student supplied output; execution was not performed by this service")
 
     if experiment == "FW01" and features["fork_present"] and not features["wait_present"]:
+        # These narrow branches cover known examples, not arbitrary C control flow.
         label, issue, next_check, strength = "missing_wait", "Missing parent-child synchronization", "Inspect the parent branch for wait() or waitpid().", "strong_static"
     elif experiment == "FW01" and features["wait_in_child_branch"]:
         label, issue, next_check, strength = "wait_in_child", "Wait is called in the child branch", "Move waitpid to the parent branch and check its return value.", "strong_static"
@@ -30,6 +32,7 @@ def diagnose(source, output, experiment, retriever, cases, question=""):
         label, issue, next_check, strength = "unknown", "Insufficient evidence for a specific diagnosis", "Provide source code and compiler or runtime output.", "insufficient"
 
     retrieved = retriever.search(question or issue, experiment=experiment, mode="Debug", k=4)
+    # The explanation carries both the likely issue and the supporting records.
     matches = match_cases(features, cases)
     observed = []
     if features["fork_present"]:

@@ -10,6 +10,7 @@ from .studio import audit_demo
 
 def processing_evaluation():
     """Compare extracted Markdown headings with hand-labelled line positions."""
+    # These labels cover three tidy demo Markdown files, not arbitrary PDFs.
     labels = json.loads(Path("data/benchmarks/processing.json").read_text(encoding="utf-8"))
     audit = audit_demo()
     sources = {item["source"]: item for item in audit["knowledge"]["sources"]}
@@ -38,6 +39,8 @@ def retrieval_evaluation():
     queries = json.loads(Path("data/benchmarks/retrieval.json").read_text(encoding="utf-8"))
     results = {}
     for method in ("bm25", "dense", "hybrid"):
+        # Recall@3 counts whether the labelled hit appears in the top three;
+        # MRR and nDCG additionally reward a higher rank.
         ranks = []
         for item in queries:
             got = retriever.search(item["query"], item["experiment"], item["mode"], method, 10)
@@ -53,6 +56,7 @@ def retrieval_evaluation():
 
 def diagnostic_evaluation():
     """Match each static failure variant against the other reviewed examples."""
+    # The correct baseline has no second correct peer, so it is not a query.
     cases = build_cases()
     rows = []
     for case in cases:

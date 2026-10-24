@@ -16,11 +16,13 @@ def collect_trusted():
     from the HTTP server and requires an explicit command in a Linux setup.
     """
     if platform.system() != "Linux" or not shutil.which("gcc"):
+        # Compilation is intentionally unavailable on this Windows review setup.
         raise RuntimeError("Trusted execution collection requires Linux and gcc; no code was run")
     cases = build_cases()
     with tempfile.TemporaryDirectory(prefix="oslab-trusted-") as temporary:
         directory = Path(temporary)
         for case in cases:
+            # The paths come from checked-in examples, never from an HTTP body.
             binary = directory / case["id"]
             compile_run = subprocess.run(["gcc", "-std=c11", "-Wall", "-Wextra", case["source_path"], "-o", str(binary)],
                                          capture_output=True, text=True, timeout=10)
@@ -30,12 +32,14 @@ def collect_trusted():
                 continue
             # These are fixed, reviewed repository examples. Student supplied code never reaches this path.
             if shutil.which("strace"):
+                # When available, record a limited syscall trace for comparison.
                 trace = directory / (case["id"] + ".trace")
                 command = ["strace", "-f", "-e", "trace=process,pipe,read,write,close", "-o", str(trace), str(binary)]
             else:
                 trace = None
                 command = [str(binary)]
             try:
+                # A timeout prevents a broken trusted example from hanging the run.
                 run = subprocess.run(command, capture_output=True, text=True, timeout=5, cwd=directory)
                 case["runtime_output"] = {"stdout": run.stdout, "stderr": run.stderr, "returncode": run.returncode}
                 if trace:

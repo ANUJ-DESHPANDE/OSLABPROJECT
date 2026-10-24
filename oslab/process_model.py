@@ -2,6 +2,8 @@
 from copy import deepcopy
 
 EVENTS = {
+    # Each named event has display text, a linked concept and a teaching-code
+    # line. These are planned steps, not actual system calls captured on Linux.
     "FORK": ("fork() returns in two processes", "fork", 5),
     "PARENT_WAIT": ("Parent calls waitpid and blocks", "wait", 8),
     "PARENT_WAIT_IMMEDIATE": ("Parent calls waitpid after the child has exited; it returns immediately", "wait", 8),
@@ -37,6 +39,8 @@ def event_plan(use_wait=True, schedule="parent_first"):
     if schedule not in {"parent_first", "child_first"}:
         raise ValueError("Unknown schedule")
     if use_wait:
+        # waitpid keeps the parent's completion after the child's exit in
+        # either selected order. Without wait, both output orders are possible.
         if schedule == "parent_first":
             return ["FORK", "PARENT_WAIT", "CHILD_RUN", "CHILD_WORK", "CHILD_EXIT", "PARENT_RESUME", "PARENT_OUTPUT", "PARENT_EXIT"]
         return ["FORK", "CHILD_RUN", "CHILD_WORK", "CHILD_EXIT", "PARENT_WAIT_IMMEDIATE", "PARENT_OUTPUT", "PARENT_EXIT"]
@@ -53,11 +57,13 @@ def initial_state():
 
 def apply_event(state, event):
     """Apply one model event to a copied state, checking impossible moves."""
+    # Copying prevents an old browser frame from changing when a new one runs.
     state = deepcopy(state)
     if event == "FORK":
         assert state["child"] == "NOT_CREATED"
         state["child"] = "READY"
     elif event == "PARENT_WAIT":
+        # The parent blocks only while the child still has work to do.
         assert state["parent"] == "RUNNING" and state["child"] == "READY"
         state["parent"], state["active"] = "BLOCKED", None
     elif event == "PARENT_WAIT_IMMEDIATE":
@@ -72,6 +78,8 @@ def apply_event(state, event):
         assert state["child"] == "RUNNING"
         state["output"].append("child finished")
     elif event == "CHILD_EXIT":
+        # A blocked parent becomes ready when the child exits; waitpid still
+        # needs to return before the parent prints its completion message.
         assert state["child"] == "RUNNING"
         state["child"] = "EXITED"
         if state["parent"] == "BLOCKED":
@@ -90,6 +98,7 @@ def apply_event(state, event):
     else:
         raise ValueError(f"Unknown event: {event}")
     assert sum(state[name] == "RUNNING" for name in ("parent", "child")) <= 1
+    # This simplified model has one CPU: parent and child cannot both run now.
     return state
 
 
@@ -99,6 +108,7 @@ def scenario(use_wait=True, schedule="parent_first"):
     frames = [{"step": 0, "event": "START", "title": "Parent begins", "concept_id": "process",
                "code_line": None, "state": deepcopy(state)}]
     for step, event in enumerate(event_plan(use_wait, schedule), 1):
+        # Store every intermediate snapshot for Back/Next controls in the UI.
         state = apply_event(state, event)
         title, concept_id, code_line = EVENTS[event]
         frames.append({"step": step, "event": event, "title": title, "concept_id": concept_id,
@@ -114,6 +124,8 @@ def grade_prediction(use_wait, schedule, step, answer):
     if not isinstance(step, int) or step < 0 or step >= len(frames) - 1:
         raise ValueError("Invalid step")
     expected = frames[step + 1]["event"]
+    # Practice and the visual explorer share the same frames, so their answer
+    # keys cannot drift apart when the teaching sequence changes.
     correct = answer == expected
     misconception = None
     if not correct and expected == "PARENT_WAIT" and answer == "CHILD_RUN":
